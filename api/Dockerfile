@@ -23,6 +23,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/src/db/schema.sql ./dist/db/schema.sql
 
 EXPOSE 3001
 
