@@ -2,6 +2,10 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
+# Force development mode so npm ci installs devDependencies (tsc, typescript, etc.)
+# NODE_ENV=production is set at runtime only, not build time.
+ENV NODE_ENV=development
+
 COPY package*.json ./
 RUN npm ci --ignore-scripts
 
