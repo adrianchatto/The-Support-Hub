@@ -15,6 +15,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+# Build the Vite app — BASE URL is hardcoded to "" (same-origin, Nginx proxies /api/)
 RUN npm run build
 
 FROM nginx:1.29-alpine

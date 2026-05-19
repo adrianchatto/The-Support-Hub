@@ -1,8 +1,8 @@
 // Typed API client — talks to the Fastify backend
-// BASE is empty in production (Nginx proxies /api/ internally).
-// Set VITE_API_URL at build time only if the API is on a different origin.
+// BASE is always empty — the browser uses same-origin paths and Nginx
+// proxies /api/ to the internal api container. No env var needed.
 
-const BASE = import.meta.env.VITE_API_URL || "";
+const BASE = "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
