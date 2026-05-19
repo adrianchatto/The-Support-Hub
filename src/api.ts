@@ -1,7 +1,8 @@
 // Typed API client — talks to the Fastify backend
-// Base URL is baked in at build time via VITE_API_URL
+// BASE is empty in production (Nginx proxies /api/ internally).
+// Set VITE_API_URL at build time only if the API is on a different origin.
 
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const BASE = import.meta.env.VITE_API_URL || "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
