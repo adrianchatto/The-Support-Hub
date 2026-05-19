@@ -5,13 +5,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-supporthub}
-      POSTGRES_USER: ${POSTGRES_USER:-supporthub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supporthub}
+      POSTGRES_DB: supporthub
+      POSTGRES_USER: supporthub
+      POSTGRES_PASSWORD: supporthub
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-supporthub}"]
+      test: ["CMD-SHELL", "pg_isready -U supporthub"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-supporthub}:${POSTGRES_PASSWORD:-supporthub}@db:5432/${POSTGRES_DB:-supporthub}
+      DATABASE_URL: postgres://supporthub:supporthub@db:5432/supporthub
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       NODE_ENV: production
       PORT: 3001
@@ -48,7 +48,7 @@ services:
       dockerfile: Dockerfile
     command: ["node", "-e", "import('./dist/db/migrate.js')"]
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-supporthub}:${POSTGRES_PASSWORD:-supporthub}@db:5432/${POSTGRES_DB:-supporthub}
+      DATABASE_URL: postgres://supporthub:supporthub@db:5432/supporthub
     depends_on:
       db:
         condition: service_healthy
