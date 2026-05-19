@@ -203,6 +203,17 @@ VALUES
   ('P4 Low',       'P4', 480,  2880)
 ON CONFLICT (name) DO NOTHING;
 
+-- ─── Problems ─────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS problems (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title       TEXT NOT NULL,
+  description TEXT,
+  status      TEXT NOT NULL DEFAULT 'Open',  -- Open | Under Investigation | Resolved | Closed
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ─── Schema evolution (idempotent ALTERs) ─────────────────────────────────────
 
 -- customers: individual people fields
@@ -213,3 +224,10 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS location   TEXT;
 
 -- sla_policies: optional category scoping (e.g. "Incident", "Service Request")
 ALTER TABLE sla_policies ADD COLUMN IF NOT EXISTS category TEXT;
+
+-- tickets: type classification and problem grouping
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ticket_type TEXT NOT NULL DEFAULT 'incident';
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS problem_id  UUID REFERENCES problems(id);
+
+-- users: local password auth
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;

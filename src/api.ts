@@ -3,12 +3,37 @@
 // proxies /api/ to the internal api container. No env var needed.
 
 const BASE = "";
+const TOKEN_KEY = "support_hub_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { ...headers, ...init?.headers },
     ...init,
   });
+
+  // Force re-login on auth failure
+  if (res.status === 401) {
+    clearToken();
+    window.location.reload();
+    throw new Error("Session expired — please log in again");
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`${res.status} ${text}`);
@@ -18,6 +43,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export type UserRole = "agent" | "supervisor" | "admin";
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+};
+
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  team_id: string | null;
+  created_at: string;
+};
 
 export type Customer = {
   id: string;
@@ -29,6 +72,8 @@ export type Customer = {
   created_at: string;
 };
 
+export type TicketType = "incident" | "service_request" | "question";
+
 export type Ticket = {
   id: string;
   customer_id: string | null;
@@ -38,7 +83,10 @@ export type Ticket = {
   channel: string;
   priority: string;
   status: string;
+  ticket_type: TicketType;
   category: string | null;
+  assigned_agent_id: string | null;
+  problem_id: string | null;
   first_response_due_at: string | null;
   resolution_due_at: string | null;
   created_at: string;
@@ -92,6 +140,51 @@ export type ArticleSuggestion = {
   tags: string[];
 };
 
+export type ProblemStatus = "Open" | "Under Investigation" | "Resolved" | "Closed";
+
+export type Problem = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: ProblemStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProblemTicket = {
+  id: string;
+  summary: string;
+  status: string;
+  priority: string;
+  customer_name: string;
+};
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    request<{ token: string; user: AuthUser }>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+  me: () => request<AuthUser>("/api/v1/auth/me"),
+};
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  list: ()                        => request<User[]>("/api/v1/users"),
+  agents: ()                      => request<User[]>("/api/v1/users/agents"),
+  get: (id: string)               => request<User>(`/api/v1/users/${id}`),
+  create: (data: {
+    email: string; name: string; role: UserRole; password: string; teamId?: string;
+  })                              => request<User>("/api/v1/users", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: {
+    name?: string; role?: UserRole; password?: string; teamId?: string | null;
+  })                              => request<User>(`/api/v1/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id: string)            => request<void>(`/api/v1/users/${id}`, { method: "DELETE" }),
+};
+
 // ─── Customers ────────────────────────────────────────────────────────────────
 
 export const customersApi = {
@@ -108,7 +201,7 @@ export const customersApi = {
 // ─── Tickets ─────────────────────────────────────────────────────────────────
 
 export const ticketsApi = {
-  list: (params?: { status?: string; priority?: string }) => {
+  list: (params?: { status?: string; priority?: string; ticketType?: string }) => {
     const q = new URLSearchParams(params as Record<string, string>).toString();
     return request<Ticket[]>(`/api/v1/tickets${q ? `?${q}` : ""}`);
   },
@@ -118,14 +211,34 @@ export const ticketsApi = {
     summary: string;
     channel: string;
     priority: string;
+    ticketType?: TicketType;
     category?: string;
   }) => request<Ticket>("/api/v1/tickets", { method: "POST", body: JSON.stringify(data) }),
   updateStatus: (id: string, status: string) =>
     request<Ticket>(`/api/v1/tickets/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  assign: (id: string, agentId: string) =>
+    request<Ticket>(`/api/v1/tickets/${id}/assign`, { method: "PATCH", body: JSON.stringify({ agentId }) }),
   getMessages: (id: string) =>
     request<TicketMessage[]>(`/api/v1/tickets/${id}/messages`),
   addMessage: (id: string, data: { authorName: string; body: string; visibility: "internal" | "customer" }) =>
     request<TicketMessage>(`/api/v1/tickets/${id}/messages`, { method: "POST", body: JSON.stringify(data) }),
+};
+
+// ─── Problems ─────────────────────────────────────────────────────────────────
+
+export const problemsApi = {
+  list: () => request<Problem[]>("/api/v1/problems"),
+  get: (id: string) => request<Problem>(`/api/v1/problems/${id}`),
+  create: (data: { title: string; description?: string }) =>
+    request<Problem>("/api/v1/problems", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: { title?: string; description?: string; status?: ProblemStatus }) =>
+    request<Problem>(`/api/v1/problems/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id: string) => request<void>(`/api/v1/problems/${id}`, { method: "DELETE" }),
+  tickets: (id: string) => request<ProblemTicket[]>(`/api/v1/problems/${id}/tickets`),
+  linkTicket: (problemId: string, ticketId: string) =>
+    request<void>(`/api/v1/problems/${problemId}/link`, { method: "POST", body: JSON.stringify({ ticketId }) }),
+  unlinkTicket: (problemId: string, ticketId: string) =>
+    request<void>(`/api/v1/problems/${problemId}/link/${ticketId}`, { method: "DELETE" }),
 };
 
 // ─── Articles ─────────────────────────────────────────────────────────────────

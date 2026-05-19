@@ -841,6 +841,250 @@ textarea {
   gap: 10px;
 }
 
+/* ─── Login form ─────────────────────────────────────────────────────────── */
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+}
+
+.login-form input {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  color: #ffffff;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.login-form input::placeholder {
+  color: rgba(255,255,255,0.4);
+}
+
+.login-form input:focus {
+  border-color: rgba(255,255,255,0.6);
+  outline: none;
+}
+
+/* ─── Identity panel (sidebar footer) ───────────────────────────────────── */
+
+.identity-panel {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding: 16px 20px;
+}
+
+.identity-info {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.identity-info strong {
+  color: #ffffff;
+  font-size: 0.875rem;
+}
+
+.role-badge {
+  background: rgba(255,255,255,0.12);
+  border-radius: 4px;
+  color: rgba(255,255,255,0.7);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sign-out-button {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.7);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.sign-out-button:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+/* ─── Ticket type badges ─────────────────────────────────────────────────── */
+
+.type-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.type-incident {
+  background: #fef3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+
+.type-service_request {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+.type-question {
+  background: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+}
+
+.assigned-badge {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: #2e7d32;
+}
+
+.problem-badge {
+  background: #fff3e0;
+  border: 1px solid #ffcc80;
+  color: #e65100;
+}
+
+/* ─── Problem list ───────────────────────────────────────────────────────── */
+
+.problem-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.problem-row {
+  align-items: center;
+  background: #f7f9fc;
+  border: 1px solid #e2eaf3;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 14px;
+  padding: 12px 14px;
+  transition: background 0.1s;
+}
+
+.problem-row:hover {
+  background: #eef4fb;
+}
+
+.problem-icon {
+  color: #e65100;
+  flex-shrink: 0;
+}
+
+.problem-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.problem-desc {
+  color: #6b7c93;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.problem-status-open        { background: #e3f2fd; border-color: #90caf9; color: #1565c0; }
+.problem-status-under-investigation { background: #fff8e1; border-color: #ffe082; color: #f57f17; }
+.problem-status-resolved    { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+.problem-status-closed      { background: #f5f5f5; border-color: #bdbdbd; color: #616161; }
+
+/* ─── Linked tickets inside problem detail ───────────────────────────────── */
+
+.linked-tickets-list {
+  display: grid;
+  gap: 4px;
+}
+
+.linked-ticket-row {
+  align-items: center;
+  background: #f7f9fc;
+  border: 1px solid #e2eaf3;
+  border-radius: 6px;
+  display: flex;
+  gap: 14px;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+}
+
+.linked-ticket-id {
+  color: #6b7c93;
+  flex-shrink: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.linked-ticket-summary {
+  flex: 1;
+  font-weight: 600;
+}
+
+/* ─── User list ──────────────────────────────────────────────────────────── */
+
+.user-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.user-row {
+  align-items: center;
+  background: #f7f9fc;
+  border: 1px solid #e2eaf3;
+  border-radius: 8px;
+  display: flex;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.user-avatar {
+  align-items: center;
+  background: #2a6ebb;
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+/* ─── Danger button variant ──────────────────────────────────────────────── */
+
+.secondary-button.danger {
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.secondary-button.danger:hover {
+  background: #fdf0ef;
+}
+
 .message-item {
   background: #f7f9fc;
   border: 1px solid #dde5ee;

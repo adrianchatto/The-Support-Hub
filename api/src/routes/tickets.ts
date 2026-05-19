@@ -11,6 +11,7 @@ import {
   type TicketStatus,
   type SupportChannel,
   type TicketPriority,
+  type TicketType,
 } from "../domain/tickets.js";
 
 export const ticketRoutes: FastifyPluginAsync = async (fastify) => {
@@ -19,13 +20,14 @@ export const ticketRoutes: FastifyPluginAsync = async (fastify) => {
     const body = request.body as Record<string, unknown>;
     const ticket = await createTicket({
       customerName: body.customerName as string,
-      contactName: body.contactName as string | undefined,
-      summary: body.summary as string,
-      description: body.description as string | undefined,
-      channel: body.channel as SupportChannel,
-      priority: body.priority as TicketPriority,
-      category: body.category as string | undefined,
-      sourceRef: body.sourceRef as string | undefined,
+      contactName:  body.contactName as string | undefined,
+      summary:      body.summary as string,
+      description:  body.description as string | undefined,
+      channel:      body.channel as SupportChannel,
+      priority:     body.priority as TicketPriority,
+      ticketType:   (body.ticketType as TicketType | undefined) ?? "incident",
+      category:     body.category as string | undefined,
+      sourceRef:    body.sourceRef as string | undefined,
     });
     return reply.code(201).send(ticket);
   });

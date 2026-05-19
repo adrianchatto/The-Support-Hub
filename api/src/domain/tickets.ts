@@ -7,11 +7,13 @@ const CHANNELS = ["Email", "Phone", "Chat", "Portal"] as const;
 const PRIORITIES = ["P1", "P2", "P3", "P4"] as const;
 const STATUSES = ["New", "Open", "Pending", "Resolved", "Closed"] as const;
 const VISIBILITIES = ["internal", "customer"] as const;
+const TICKET_TYPES = ["incident", "service_request", "question"] as const;
 
 export type SupportChannel = (typeof CHANNELS)[number];
 export type TicketPriority = (typeof PRIORITIES)[number];
 export type TicketStatus = (typeof STATUSES)[number];
 export type MessageVisibility = (typeof VISIBILITIES)[number];
+export type TicketType = (typeof TICKET_TYPES)[number];
 
 export type Ticket = {
   id: string;
@@ -22,9 +24,11 @@ export type Ticket = {
   channel: SupportChannel;
   priority: TicketPriority;
   status: TicketStatus;
+  ticket_type: TicketType;
   category: string | null;
   assigned_team_id: string | null;
   assigned_agent_id: string | null;
+  problem_id: string | null;
   first_response_due_at: Date | null;
   resolution_due_at: Date | null;
   created_at: Date;
@@ -49,6 +53,7 @@ const CreateTicketSchema = z.object({
   description: z.string().optional(),
   channel: z.enum(CHANNELS, { errorMap: () => ({ message: "Invalid channel" }) }),
   priority: z.enum(PRIORITIES, { errorMap: () => ({ message: "Invalid priority" }) }),
+  ticketType: z.enum(TICKET_TYPES).optional().default("incident"),
   category: z.string().optional(),
   sourceRef: z.string().optional(),
   customerId: z.string().uuid().optional(),
@@ -85,10 +90,10 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const ticketResult = await pool.query<Ticket>(
     `INSERT INTO tickets (
        id, customer_name, contact_name, summary, description,
-       channel, priority, status, category, source_ref,
+       channel, priority, status, ticket_type, category, source_ref,
        customer_id, contact_id
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'New',$8,$9,$10,$11)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'New',$8,$9,$10,$11,$12)
      RETURNING *`,
     [
       ticketId,
@@ -98,6 +103,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
       data.description ?? null,
       data.channel,
       data.priority,
+      data.ticketType,
       data.category ?? null,
       data.sourceRef ?? null,
       data.customerId ?? null,
