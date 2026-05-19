@@ -4,7 +4,7 @@ import { getPool } from "../db/client.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ArticleStatus = "Draft" | "Published" | "Archived";
+export type ArticleStatus = "Draft" | "Pending Review" | "Published" | "Archived";
 export type ArticleAudience = "Customer" | "Internal" | "Both";
 
 export type Article = {
@@ -122,6 +122,32 @@ export async function updateArticle(id: string, input: UpdateArticleInput): Prom
   );
 
   if (!result.rows[0]) throw new Error(`Article ${id} not found`);
+  return result.rows[0];
+}
+
+export async function submitArticleForReview(id: string): Promise<Article> {
+  const pool = getPool();
+  const result = await pool.query<Article>(
+    `UPDATE articles
+     SET status = 'Pending Review', updated_at = NOW()
+     WHERE id = $1 AND status = 'Draft'
+     RETURNING *`,
+    [id]
+  );
+  if (!result.rows[0]) throw new Error(`Article ${id} not found or is not a draft`);
+  return result.rows[0];
+}
+
+export async function rejectArticle(id: string): Promise<Article> {
+  const pool = getPool();
+  const result = await pool.query<Article>(
+    `UPDATE articles
+     SET status = 'Draft', updated_at = NOW()
+     WHERE id = $1 AND status = 'Pending Review'
+     RETURNING *`,
+    [id]
+  );
+  if (!result.rows[0]) throw new Error(`Article ${id} not found or is not pending review`);
   return result.rows[0];
 }
 

@@ -177,7 +177,7 @@ function App() {
         {activeSurface === "tickets"    && <TicketsSurface currentUser={currentUser} />}
         {activeSurface === "customers"  && <CustomersSurface />}
         {activeSurface === "problems"   && <ProblemsSurface />}
-        {activeSurface === "knowledge"  && <KnowledgeSurface />}
+        {activeSurface === "knowledge"  && <KnowledgeSurface currentUser={currentUser} />}
         {activeSurface === "sla"        && <SlaSurface />}
         {activeSurface === "reporting"  && <ReportingSurface />}
         {activeSurface === "users" && currentUser.role === "admin" && <UsersSurface />}
@@ -1272,17 +1272,22 @@ function UsersSurface() {
 
 type KbView = "list" | "editor" | "suggest";
 
-function KnowledgeSurface() {
-  const [articles, setArticles]     = useState<Article[]>([]);
-  const [search, setSearch]         = useState("");
-  const [view, setView]             = useState<KbView>("list");
-  const [editing, setEditing]       = useState<Article | null>(null);
-  const [suggestion, setSuggestion] = useState<ArticleSuggestion | null>(null);
-  const [chatInput, setChatInput]   = useState("");
-  const [suggesting, setSuggesting] = useState(false);
-  const [form, setForm]             = useState({ title: "", summary: "", body: "", category: "", audience: "Customer" });
-  const [saving, setSaving]         = useState(false);
-  const [saveError, setSaveError]   = useState<string | null>(null);
+function KnowledgeSurface({ currentUser }: { currentUser: AuthUser }) {
+  const isAgent    = currentUser.role === "agent";
+  const canApprove = currentUser.role === "supervisor" || currentUser.role === "admin";
+
+  const [articles, setArticles]         = useState<Article[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [search, setSearch]             = useState("");
+  const [view, setView]                 = useState<KbView>("list");
+  const [editing, setEditing]           = useState<Article | null>(null);
+  const [suggestion, setSuggestion]     = useState<ArticleSuggestion | null>(null);
+  const [chatInput, setChatInput]       = useState("");
+  const [suggesting, setSuggesting]     = useState(false);
+  const [form, setForm]                 = useState({ title: "", summary: "", body: "", category: "", audience: "Customer" });
+  const [saving, setSaving]             = useState(false);
+  const [saveError, setSaveError]       = useState<string | null>(null);
+  const [actionError, setActionError]   = useState<string | null>(null);
 
   const reload = useCallback(() => {
     articlesApi.list({ search: search || undefined }).then(setArticles).catch(console.error);
@@ -1342,16 +1347,27 @@ function KnowledgeSurface() {
     }
   }
 
-  async function handlePublish(id: string) { await articlesApi.publish(id).catch(console.error); reload(); }
-  async function handleArchive(id: string) { await articlesApi.archive(id).catch(console.error); reload(); }
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this article?")) return;
-    await articlesApi.delete(id).catch(console.error);
-    reload();
+  async function act(fn: () => Promise<unknown>) {
+    setActionError(null);
+    try { await fn(); reload(); }
+    catch (err) { setActionError(err instanceof Error ? err.message : "Action failed"); }
   }
 
-  const drafts    = articles.filter((a) => a.status === "Draft").length;
-  const published = articles.filter((a) => a.status === "Published").length;
+  const pendingCount = articles.filter((a) => a.status === "Pending Review").length;
+  const drafts       = articles.filter((a) => a.status === "Draft").length;
+  const published    = articles.filter((a) => a.status === "Published").length;
+
+  const filteredArticles = statusFilter
+    ? articles.filter((a) => a.status === statusFilter)
+    : articles;
+
+  const STATUS_TABS = [
+    { label: "All",            value: "" },
+    { label: "Drafts",         value: "Draft" },
+    { label: `Pending review${pendingCount > 0 ? ` (${pendingCount})` : ""}`, value: "Pending Review" },
+    { label: "Published",      value: "Published" },
+    { label: "Archived",       value: "Archived" },
+  ];
 
   return (
     <section className="knowledge-layout">
@@ -1369,24 +1385,64 @@ function KnowledgeSurface() {
                 </button>
               </div>
             </div>
+
+            {/* Status filter tabs */}
+            <div className="kb-filter-tabs">
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  className={`kb-tab${statusFilter === tab.value ? " active" : ""}${tab.value === "Pending Review" && pendingCount > 0 ? " has-badge" : ""}`}
+                  onClick={() => setStatusFilter(tab.value)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <label className="search-field">
               <Search aria-hidden="true" size={18} />
               Search knowledge
               <input placeholder="Search articles…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </label>
+
+            {actionError && <div className="form-error" style={{ marginBottom: 8 }}>{actionError}</div>}
+
             <div className="article-list">
-              {articles.length === 0 ? (
+              {filteredArticles.length === 0 ? (
                 <div className="empty-state">No articles found.</div>
-              ) : articles.map((a) => (
+              ) : filteredArticles.map((a) => (
                 <article className="article-row" key={a.id}>
                   <BookOpen aria-hidden="true" size={20} />
                   <div><h4>{a.title}</h4><p>{a.summary}</p></div>
                   <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                    <span className={`badge status-badge-${a.status.toLowerCase()}`}>{a.status}</span>
+                    <span className={`badge status-badge-${a.status.toLowerCase().replace(" ", "-")}`}>{a.status}</span>
                     <button className="icon-button" type="button" onClick={() => openEdit(a)}><Pencil size={14} /></button>
-                    {a.status === "Draft"     && <button className="secondary-button small" type="button" onClick={() => handlePublish(a.id)}>Publish</button>}
-                    {a.status === "Published" && <button className="secondary-button small" type="button" onClick={() => handleArchive(a.id)}>Archive</button>}
-                    <button className="icon-button danger" type="button" onClick={() => handleDelete(a.id)}><Trash2 size={14} /></button>
+
+                    {/* Agent: can submit drafts for review */}
+                    {isAgent && a.status === "Draft" && (
+                      <button className="secondary-button small" type="button" onClick={() => act(() => articlesApi.submitForReview(a.id))}>
+                        Submit for review
+                      </button>
+                    )}
+
+                    {/* Supervisor / Admin: approve or reject pending articles */}
+                    {canApprove && a.status === "Pending Review" && (
+                      <>
+                        <button className="primary-button small" type="button" onClick={() => act(() => articlesApi.publish(a.id))}>Approve</button>
+                        <button className="secondary-button small danger" type="button" onClick={() => act(() => articlesApi.reject(a.id))}>Reject</button>
+                      </>
+                    )}
+                    {/* Supervisor / Admin: can publish drafts directly */}
+                    {canApprove && a.status === "Draft" && (
+                      <button className="secondary-button small" type="button" onClick={() => act(() => articlesApi.publish(a.id))}>Publish</button>
+                    )}
+                    {canApprove && a.status === "Published" && (
+                      <button className="secondary-button small" type="button" onClick={() => act(() => articlesApi.archive(a.id))}>Archive</button>
+                    )}
+                    {canApprove && (
+                      <button className="icon-button danger" type="button" onClick={() => { if (confirm("Delete this article?")) act(() => articlesApi.delete(a.id)); }}><Trash2 size={14} /></button>
+                    )}
                   </div>
                 </article>
               ))}
@@ -1419,7 +1475,7 @@ function KnowledgeSurface() {
                 <p style={{ color:"#526174" }}>{suggestion.summary}</p>
                 <pre className="article-body-preview">{suggestion.body}</pre>
                 <div style={{ display:"flex", gap:10, marginTop:14 }}>
-                  <button className="primary-button" type="button" onClick={() => applySuggestion(suggestion)}>Edit &amp; publish</button>
+                  <button className="primary-button" type="button" onClick={() => applySuggestion(suggestion)}>Edit &amp; save draft</button>
                   <button className="secondary-button" type="button" onClick={() => setSuggestion(null)}>Discard</button>
                 </div>
               </div>
@@ -1445,7 +1501,26 @@ function KnowledgeSurface() {
                 </select>
               </label>
               <label>Body (Markdown supported)<textarea rows={14} required value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} /></label>
-              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save draft"}</button>
+              <div style={{ display:"flex", gap:10 }}>
+                <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save draft"}</button>
+                {isAgent && editing && editing.status === "Draft" && (
+                  <button className="secondary-button" type="button" disabled={saving}
+                    onClick={async () => {
+                      setSaving(true);
+                      setSaveError(null);
+                      try {
+                        await articlesApi.update(editing.id, form);
+                        await articlesApi.submitForReview(editing.id);
+                        setView("list");
+                        reload();
+                      } catch (err) {
+                        setSaveError(err instanceof Error ? err.message : "Failed to submit for review");
+                      } finally { setSaving(false); }
+                    }}>
+                    Save &amp; submit for review
+                  </button>
+                )}
+              </div>
             </form>
           </>
         )}
@@ -1455,7 +1530,8 @@ function KnowledgeSurface() {
         <h3>Article stats</h3>
         <Metric label="Total articles"  value={String(articles.length)} />
         <Metric label="Published"       value={String(published)} />
-        <Metric label="Awaiting review" value={String(drafts)} />
+        <Metric label="Pending review"  value={String(pendingCount)} />
+        <Metric label="Drafts"          value={String(drafts)} />
       </aside>
     </section>
   );

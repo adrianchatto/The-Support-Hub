@@ -522,9 +522,10 @@ textarea {
 
 /* ─── Article status badges ──────────────────────────────────────────────── */
 
-.status-badge-draft     { background: #f0f4f8; color: #3d5068; border-color: #c7d3df; }
-.status-badge-published { background: #e2f5ec; color: #145c35; border-color: #a3d9bb; }
-.status-badge-archived  { background: #f5f5f5; color: #666;    border-color: #ddd; }
+.status-badge-draft          { background: #f0f4f8; color: #3d5068; border-color: #c7d3df; }
+.status-badge-published      { background: #e2f5ec; color: #145c35; border-color: #a3d9bb; }
+.status-badge-archived       { background: #f5f5f5; color: #666;    border-color: #ddd; }
+.status-badge-pending-review { background: #fff7e6; color: #92530c; border-color: #f5c06a; }
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
 
@@ -698,9 +699,53 @@ textarea {
 
 /* ─── Knowledge article editor ───────────────────────────────────────────── */
 
-.secondary-button.small {
+.secondary-button.small,
+.primary-button.small {
   font-size: 0.8rem;
   padding: 6px 10px;
+}
+
+/* Knowledge base filter tabs */
+.kb-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.kb-tab {
+  background: #f0f4f8;
+  border: 1px solid #c7d3df;
+  border-radius: 20px;
+  color: #526174;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 5px 14px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.kb-tab:hover {
+  background: #dde5ee;
+  color: #2c3e50;
+}
+
+.kb-tab.active {
+  background: #1a73e8;
+  border-color: #1a73e8;
+  color: #ffffff;
+}
+
+.kb-tab.has-badge {
+  border-color: #f5c06a;
+  color: #92530c;
+  background: #fff7e6;
+}
+
+.kb-tab.has-badge.active {
+  background: #e67e22;
+  border-color: #e67e22;
+  color: #ffffff;
 }
 
 .suggestion-preview {

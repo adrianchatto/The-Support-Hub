@@ -35,8 +35,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status} ${text}`);
+    const text = await res.text().catch(() => "");
+    // If the response is HTML (proxy error page, 502, etc.) don't show raw markup
+    if (text.trimStart().startsWith("<")) {
+      const labels: Record<number, string> = {
+        502: "The server is unavailable (502). Check that the API is running and JWT_SECRET is set in Coolify.",
+        503: "Service temporarily unavailable (503). Try again in a moment.",
+        504: "Gateway timeout (504). The API took too long to respond.",
+      };
+      throw new Error(labels[res.status] ?? `Server error (${res.status}). Check deployment logs.`);
+    }
+    // Try to parse a JSON error message
+    let errorMessage = text || `${res.status} error`;
+    try {
+      const json = JSON.parse(text);
+      errorMessage = json.error ?? json.message ?? errorMessage;
+    } catch {
+      // text is not JSON — use it as-is
+    }
+    throw new Error(errorMessage);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -100,7 +117,7 @@ export type Article = {
   category: string | null;
   tags: string[];
   audience: string;
-  status: "Draft" | "Published" | "Archived";
+  status: "Draft" | "Pending Review" | "Published" | "Archived";
   created_at: string;
   updated_at: string;
 };
@@ -258,6 +275,10 @@ export const articlesApi = {
   archive: (id: string) =>
     request<Article>(`/api/v1/articles/${id}/archive`, { method: "POST" }),
   delete: (id: string) => request<void>(`/api/v1/articles/${id}`, { method: "DELETE" }),
+  submitForReview: (id: string) =>
+    request<Article>(`/api/v1/articles/${id}/submit-for-review`, { method: "POST" }),
+  reject: (id: string) =>
+    request<Article>(`/api/v1/articles/${id}/reject`, { method: "POST" }),
   suggest: (conversationSummary: string) =>
     request<ArticleSuggestion>("/api/v1/articles/suggest", {
       method: "POST",
