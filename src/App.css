@@ -850,29 +850,30 @@ textarea {
 }
 
 .login-form label {
+  color: #3d4f63;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.9);
+  font-weight: 600;
+  gap: 6px;
 }
 
 .login-form input {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.25);
+  background: #f7f9fc;
+  border: 1px solid #c7d2df;
   border-radius: 8px;
-  color: #ffffff;
+  color: #172033;
   font: inherit;
   padding: 10px 12px;
 }
 
 .login-form input::placeholder {
-  color: rgba(255,255,255,0.4);
+  color: #9aa5b4;
 }
 
 .login-form input:focus {
-  border-color: rgba(255,255,255,0.6);
+  border-color: #2a6ebb;
+  box-shadow: 0 0 0 3px rgba(42,110,187,0.12);
   outline: none;
 }
 
