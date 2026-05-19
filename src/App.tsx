@@ -251,20 +251,13 @@ const BLANK_TICKET = { customerId: "", customerName: "", summary: "", priority: 
 const TICKET_STATUSES = ["New", "Open", "Pending", "Resolved", "Closed"];
 
 function TicketsSurface() {
-  const [tickets, setTickets]           = useState<Ticket[]>([]);
-  const [customers, setCustomers]       = useState<Customer[]>([]);
-  const [formOpen, setFormOpen]         = useState(false);
-  const [form, setForm]                 = useState(BLANK_TICKET);
-  const [saving, setSaving]             = useState(false);
-  const [error, setError]               = useState<string | null>(null);
-  const [selected, setSelected]         = useState<Ticket | null>(null);
-  const [messages, setMessages]         = useState<TicketMessage[]>([]);
-  const [msgLoading, setMsgLoading]     = useState(false);
-  const [newStatus, setNewStatus]       = useState("");
-  const [statusSaving, setStatusSaving] = useState(false);
-  const [noteBody, setNoteBody]         = useState("");
-  const [noteVis, setNoteVis]           = useState<"internal" | "customer">("internal");
-  const [noteSaving, setNoteSaving]     = useState(false);
+  const [tickets, setTickets]     = useState<Ticket[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [formOpen, setFormOpen]   = useState(false);
+  const [form, setForm]           = useState(BLANK_TICKET);
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+  const [selected, setSelected]   = useState<Ticket | null>(null);
 
   const reload = useCallback(() => {
     ticketsApi.list().then(setTickets).catch(console.error);
@@ -305,44 +298,26 @@ function TicketsSurface() {
 
   function openTicket(t: Ticket) {
     setSelected(t);
-    setNewStatus(t.status);
-    setMessages([]);
-    setMsgLoading(true);
-    ticketsApi.getMessages(t.id)
-      .then(setMessages)
-      .catch(console.error)
-      .finally(() => setMsgLoading(false));
+    setFormOpen(false);
   }
 
-  async function handleStatusUpdate() {
-    if (!selected || !newStatus || newStatus === selected.status) return;
-    setStatusSaving(true);
-    try {
-      const updated = await ticketsApi.updateStatus(selected.id, newStatus);
-      setSelected(updated);
-      setTickets((ts) => ts.map((t) => t.id === updated.id ? updated : t));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Status update failed");
-    } finally {
-      setStatusSaving(false);
-    }
+  function onTicketUpdated(updated: Ticket) {
+    setSelected(updated);
+    setTickets((ts) => ts.map((t) => t.id === updated.id ? updated : t));
   }
 
-  async function handleAddNote(e: FormEvent) {
-    e.preventDefault();
-    if (!selected || !noteBody.trim()) return;
-    setNoteSaving(true);
-    try {
-      const msg = await ticketsApi.addMessage(selected.id, { authorName: "Agent", body: noteBody, visibility: noteVis });
-      setMessages((ms) => [...ms, msg]);
-      setNoteBody("");
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to add note");
-    } finally {
-      setNoteSaving(false);
-    }
+  // ── Detail view takes over the whole main area ─────────────────────────────
+  if (selected) {
+    return (
+      <TicketDetailView
+        ticket={selected}
+        onBack={() => setSelected(null)}
+        onUpdated={onTicketUpdated}
+      />
+    );
   }
 
+  // ── Queue view ─────────────────────────────────────────────────────────────
   return (
     <section className="surface-grid">
       <div className="operations-panel queue-panel">
@@ -392,81 +367,141 @@ function TicketsSurface() {
           </form>
         )}
 
-        <TicketQueueTable tickets={tickets} onSelect={openTicket} selectedId={selected?.id} />
+        <TicketQueueTable tickets={tickets} onSelect={openTicket} />
       </div>
 
       <div className="operations-panel side-panel">
-        {selected ? (
-          <div className="ticket-detail">
-            <div className="ticket-detail-header">
-              <div>
-                <p className="eyebrow">{selected.id}</p>
-                <h3 style={{ marginBottom: 4 }}>{selected.summary}</h3>
-                <p style={{ color: "#526174", margin: 0, fontSize: "0.9rem" }}>
-                  {selected.customer_name} · <span className={`priority priority-${selected.priority.toLowerCase()}`}>{selected.priority}</span> · {selected.channel}
-                </p>
-              </div>
-              <button className="icon-button" type="button" onClick={() => setSelected(null)} aria-label="Close"><X size={16} /></button>
-            </div>
-
-            <div className="ticket-detail-status">
-              <label style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>Status</span>
-                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
-                  {TICKET_STATUSES.map((s) => <option key={s}>{s}</option>)}
-                </select>
-                <button className="primary-button" type="button" onClick={handleStatusUpdate} disabled={statusSaving || newStatus === selected.status}>
-                  {statusSaving ? "Saving…" : "Update"}
-                </button>
-              </label>
-            </div>
-
-            <div className="ticket-messages">
-              <h4 style={{ marginBottom: 8 }}>Notes &amp; activity</h4>
-              {msgLoading ? (
-                <p className="loading-text">Loading…</p>
-              ) : messages.length === 0 ? (
-                <p style={{ color: "#9aa5b4", fontSize: "0.875rem" }}>No notes yet.</p>
-              ) : messages.map((m) => (
-                <div key={m.id} className={`message-item ${m.visibility}`}>
-                  <div className="message-meta">
-                    <strong>{m.author_name}</strong>
-                    <span className={`badge visibility-${m.visibility}`}>{m.visibility === "internal" ? "Internal" : "Customer"}</span>
-                    <span className="message-time">{new Date(m.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                  </div>
-                  <p className="message-body">{m.body}</p>
-                </div>
-              ))}
-            </div>
-
-            <form className="note-form" onSubmit={handleAddNote}>
-              <h4>Add note</h4>
-              <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: "0.875rem" }}>Visibility</span>
-                <select value={noteVis} onChange={(e) => setNoteVis(e.target.value as "internal" | "customer")}>
-                  <option value="internal">Internal (agents only)</option>
-                  <option value="customer">Customer-facing</option>
-                </select>
-              </label>
-              <textarea rows={3} required value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note or update…" />
-              <button className="primary-button" type="submit" disabled={noteSaving}>{noteSaving ? "Saving…" : "Add note"}</button>
-            </form>
-          </div>
-        ) : (
-          <>
-            <h3>Queue summary</h3>
-            <Metric label="Total open"     value={String(tickets.filter((t) => !["Resolved","Closed"].includes(t.status)).length)} />
-            <Metric label="Unassigned"     value={String(tickets.filter((t) => t.status === "New").length)} />
-            <Metric label="P1 / P2 active" value={String(tickets.filter((t) => ["P1","P2"].includes(t.priority) && !["Resolved","Closed"].includes(t.status)).length)} />
-            <p style={{ color: "#9aa5b4", fontSize: "0.8rem", marginTop: 12 }}>Click a ticket to view details, update status, and add notes.</p>
-          </>
-        )}
+        <h3>Queue summary</h3>
+        <Metric label="Total open"     value={String(tickets.filter((t) => !["Resolved","Closed"].includes(t.status)).length)} />
+        <Metric label="Unassigned"     value={String(tickets.filter((t) => t.status === "New").length)} />
+        <Metric label="P1 / P2 active" value={String(tickets.filter((t) => ["P1","P2"].includes(t.priority) && !["Resolved","Closed"].includes(t.status)).length)} />
+        <p style={{ color: "#9aa5b4", fontSize: "0.8rem", marginTop: 12 }}>Click any ticket to open it.</p>
       </div>
     </section>
   );
 }
 
-function TicketQueueTable({ tickets, compact, onSelect, selectedId }: { tickets: Ticket[]; compact?: boolean; onSelect?: (t: Ticket) => void; selectedId?: string }) {
+// ─── Ticket detail (full main area) ───────────────────────────────────────────
+
+function TicketDetailView({ ticket, onBack, onUpdated }: { ticket: Ticket; onBack: () => void; onUpdated: (t: Ticket) => void }) {
+  const [messages, setMessages]         = useState<TicketMessage[]>([]);
+  const [msgLoading, setMsgLoading]     = useState(true);
+  const [newStatus, setNewStatus]       = useState(ticket.status);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError]   = useState<string | null>(null);
+  const [noteBody, setNoteBody]         = useState("");
+  const [noteVis, setNoteVis]           = useState<"internal" | "customer">("internal");
+  const [noteSaving, setNoteSaving]     = useState(false);
+  const [noteError, setNoteError]       = useState<string | null>(null);
+
+  useEffect(() => {
+    ticketsApi.getMessages(ticket.id)
+      .then(setMessages)
+      .catch(console.error)
+      .finally(() => setMsgLoading(false));
+  }, [ticket.id]);
+
+  async function handleStatusUpdate(e: FormEvent) {
+    e.preventDefault();
+    if (newStatus === ticket.status) return;
+    setStatusSaving(true);
+    setStatusError(null);
+    try {
+      const updated = await ticketsApi.updateStatus(ticket.id, newStatus);
+      onUpdated(updated);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "Status update failed");
+    } finally {
+      setStatusSaving(false);
+    }
+  }
+
+  async function handleAddNote(e: FormEvent) {
+    e.preventDefault();
+    if (!noteBody.trim()) return;
+    setNoteSaving(true);
+    setNoteError(null);
+    try {
+      const msg = await ticketsApi.addMessage(ticket.id, { authorName: "Agent", body: noteBody, visibility: noteVis });
+      setMessages((ms) => [...ms, msg]);
+      setNoteBody("");
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : "Failed to add note");
+    } finally {
+      setNoteSaving(false);
+    }
+  }
+
+  return (
+    <div className="ticket-detail-page">
+      <div className="ticket-detail-topbar">
+        <button className="secondary-button" type="button" onClick={onBack}>← Back to queue</button>
+        <div className="ticket-detail-title">
+          <span className="eyebrow">{ticket.id}</span>
+          <h3>{ticket.summary}</h3>
+          <div className="ticket-detail-meta">
+            <span>{ticket.customer_name}</span>
+            <span className="badge">{ticket.channel}</span>
+            <span className={`priority priority-${ticket.priority.toLowerCase()}`}>{ticket.priority}</span>
+            <span className="badge">{ticket.status}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="ticket-detail-body">
+        {/* ── Left: message history ── */}
+        <div className="operations-panel ticket-messages-panel">
+          <h4>Notes &amp; activity</h4>
+          {msgLoading ? (
+            <p className="loading-text">Loading…</p>
+          ) : messages.length === 0 ? (
+            <p style={{ color: "#9aa5b4", fontSize: "0.875rem", marginTop: 8 }}>No notes yet.</p>
+          ) : messages.map((m) => (
+            <div key={m.id} className={`message-item ${m.visibility}`}>
+              <div className="message-meta">
+                <strong>{m.author_name}</strong>
+                <span className={`badge visibility-${m.visibility}`}>{m.visibility === "internal" ? "Internal" : "Customer"}</span>
+                <span className="message-time">{new Date(m.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              </div>
+              <p className="message-body">{m.body}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Right: actions ── */}
+        <div className="ticket-detail-actions">
+          <div className="operations-panel">
+            <h4>Update status</h4>
+            <form onSubmit={handleStatusUpdate} style={{ display: "grid", gap: 10, marginTop: 10 }}>
+              {statusError && <div className="form-error">{statusError}</div>}
+              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                {TICKET_STATUSES.map((s) => <option key={s}>{s}</option>)}
+              </select>
+              <button className="primary-button" type="submit" disabled={statusSaving || newStatus === ticket.status}>
+                {statusSaving ? "Saving…" : "Update status"}
+              </button>
+            </form>
+          </div>
+
+          <div className="operations-panel">
+            <h4>Add note</h4>
+            <form onSubmit={handleAddNote} style={{ display: "grid", gap: 10, marginTop: 10 }}>
+              {noteError && <div className="form-error">{noteError}</div>}
+              <select value={noteVis} onChange={(e) => setNoteVis(e.target.value as "internal" | "customer")}>
+                <option value="internal">Internal (agents only)</option>
+                <option value="customer">Customer-facing</option>
+              </select>
+              <textarea rows={5} required value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note or update…" style={{ border: "1px solid #c7d3df", borderRadius: 6, padding: "8px 10px", resize: "vertical" }} />
+              <button className="primary-button" type="submit" disabled={noteSaving}>{noteSaving ? "Saving…" : "Add note"}</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TicketQueueTable({ tickets, compact, onSelect }: { tickets: Ticket[]; compact?: boolean; onSelect?: (t: Ticket) => void }) {
   return (
     <section aria-label="Ticket queue" className="queue-table">
       {!compact && (
@@ -482,7 +517,7 @@ function TicketQueueTable({ tickets, compact, onSelect, selectedId }: { tickets:
         <div className="empty-state">No tickets yet.</div>
       ) : tickets.map((ticket) => (
         <div
-          className={`queue-row${onSelect ? " clickable" : ""}${selectedId === ticket.id ? " selected" : ""}`}
+          className={`queue-row${onSelect ? " clickable" : ""}`}
           key={ticket.id}
           onClick={() => onSelect?.(ticket)}
           role={onSelect ? "button" : undefined}
@@ -561,8 +596,12 @@ function CustomersSurface() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this customer?")) return;
-    await customersApi.delete(id).catch(console.error);
-    reload();
+    try {
+      await customersApi.delete(id);
+      reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+    }
   }
 
   return (

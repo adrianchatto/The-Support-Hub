@@ -48,7 +48,7 @@ export async function createArticle(input: CreateArticleInput): Promise<Article>
 
   const result = await pool.query<Article>(
     `INSERT INTO articles (title, summary, body, category, tags, audience, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'Draft')
+     VALUES ($1, $2, $3, $4, $5::text[], $6, 'Draft')
      RETURNING *`,
     [
       data.title,

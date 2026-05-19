@@ -741,6 +741,59 @@ textarea {
 .reporting-panel:nth-child(4) { grid-column: 1 / 3; }
 .reporting-panel:nth-child(5) { grid-column: 3 / 4; }
 
+/* ─── Ticket detail full-page view ──────────────────────────────────────── */
+
+.ticket-detail-page {
+  display: grid;
+  gap: 18px;
+}
+
+.ticket-detail-topbar {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+}
+
+.ticket-detail-title {
+  flex: 1;
+}
+
+.ticket-detail-title h3 {
+  margin: 4px 0 8px;
+}
+
+.ticket-detail-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ticket-detail-body {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.6fr) 280px;
+  align-items: start;
+}
+
+.ticket-messages-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.ticket-messages-panel h4 {
+  margin: 0 0 4px;
+}
+
+.ticket-detail-actions {
+  display: grid;
+  gap: 14px;
+}
+
+.ticket-detail-actions h4 {
+  margin: 0;
+}
+
 /* ─── Clickable queue rows ───────────────────────────────────────────────── */
 
 .queue-row.clickable {
