@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyError } from "fastify";
 import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
 import { ticketRoutes } from "./routes/tickets.js";
@@ -32,7 +32,7 @@ export async function buildServer() {
   await fastify.register(chatRoutes, { prefix: "/api/v1/chat" });
 
   // Global error handler
-  fastify.setErrorHandler((error, _request, reply) => {
+  fastify.setErrorHandler((error: FastifyError, _request, reply) => {
     fastify.log.error(error);
     const statusCode = error.statusCode ?? 500;
     reply.code(statusCode).send({
