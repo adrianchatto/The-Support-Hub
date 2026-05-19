@@ -9,10 +9,12 @@ import {
   Layers,
   LayoutDashboard,
   LockKeyhole,
+  Moon,
   Pencil,
   Plus,
   Search,
   Settings,
+  Sun,
   Ticket as TicketIcon,
   Trash2,
   UserCog,
@@ -50,6 +52,9 @@ import "./App.css";
 // ─── Surface definitions ──────────────────────────────────────────────────────
 
 type Surface = "dashboard" | "tickets" | "customers" | "problems" | "knowledge" | "sla" | "reporting" | "users";
+type Theme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "support_hub_theme";
 
 function getSurfaces(role: UserRole): Array<{ id: Surface; label: string; icon: typeof TicketIcon }> {
   const base: Array<{ id: Surface; label: string; icon: typeof TicketIcon }> = [
@@ -86,12 +91,40 @@ const TICKET_TYPE_LABELS: Record<TicketType, string> = {
   question:        "Question",
 };
 
+function readStoredTheme(): Theme | null {
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "light" || stored === "dark" ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function getInitialTheme(): Theme {
+  const stored = readStoredTheme();
+  if (stored) return stored;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function persistTheme(theme: Theme): void {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // Theme persistence is progressive enhancement; the UI still switches immediately.
+  }
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeSurface, setActiveSurface] = useState<Surface>("dashboard");
+  const [theme, setTheme] = useState<Theme>(() => getInitialTheme());
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   // Re-hydrate session from stored JWT on mount
   useEffect(() => {
@@ -111,6 +144,14 @@ function App() {
   function handleSignOut() {
     clearToken();
     setCurrentUser(null);
+  }
+
+  function handleThemeToggle() {
+    setTheme((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      persistTheme(next);
+      return next;
+    });
   }
 
   if (authLoading) {
@@ -161,6 +202,16 @@ function App() {
             <strong>{currentUser.name}</strong>
             <span className="role-badge">{currentUser.role}</span>
           </div>
+          <button
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="theme-toggle-button"
+            onClick={handleThemeToggle}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            type="button"
+          >
+            {theme === "dark" ? <Sun aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
+            <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+          </button>
           <button className="sign-out-button" type="button" onClick={handleSignOut}>Sign out</button>
         </div>
       </aside>
