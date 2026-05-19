@@ -219,7 +219,10 @@ export const customersApi = {
 
 export const ticketsApi = {
   list: (params?: { status?: string; priority?: string; ticketType?: string }) => {
-    const q = new URLSearchParams(params as Record<string, string>).toString();
+    const cleaned = Object.fromEntries(
+      Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "")
+    );
+    const q = new URLSearchParams(cleaned).toString();
     return request<Ticket[]>(`/api/v1/tickets${q ? `?${q}` : ""}`);
   },
   create: (data: {
@@ -262,7 +265,10 @@ export const problemsApi = {
 
 export const articlesApi = {
   list: (params?: { status?: string; search?: string }) => {
-    const q = new URLSearchParams(params as Record<string, string>).toString();
+    const cleaned = Object.fromEntries(
+      Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "")
+    );
+    const q = new URLSearchParams(cleaned).toString();
     return request<Article[]>(`/api/v1/articles${q ? `?${q}` : ""}`);
   },
   get: (id: string) => request<Article>(`/api/v1/articles/${id}`),
