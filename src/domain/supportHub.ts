@@ -4,6 +4,14 @@ export type TicketPriority = "P1" | "P2" | "P3" | "P4";
 
 export type TicketStatus = "New" | "Open" | "Pending" | "Resolved" | "Closed";
 
+export type RequestType = "Incident" | "Service Request" | "Question" | "Service Review" | "Problem";
+
+export type TicketCategory = "Access" | "Billing" | "Service review" | "Knowledge" | "General";
+
+export type ImpactLevel = "Low" | "Medium" | "High";
+
+export type UrgencyLevel = "Low" | "Medium" | "High";
+
 export type KnowledgeArticleAudience = "Customer" | "Internal";
 
 export type KnowledgeArticleStatus = "Draft" | "Published";
@@ -13,10 +21,25 @@ export type Ticket = {
   channel: SupportChannel;
   customer: string;
   contact?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  createdAt: string;
+  category: TicketCategory;
+  impact: ImpactLevel;
+  parentTicketId?: string;
+  problemCandidate: boolean;
+  requestType: RequestType;
   summary: string;
+  urgency: UrgencyLevel;
   priority: TicketPriority;
   status: TicketStatus;
   linkedArticleIds: string[];
+  timeline: TimelineEntry[];
+};
+
+export type TimelineEntry = {
+  message: string;
+  createdAt: string;
 };
 
 export type KnowledgeArticle = {
@@ -45,8 +68,16 @@ export type AddTicketInput = {
   channel: SupportChannel;
   customer: string;
   contact?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  category?: TicketCategory;
+  impact?: ImpactLevel;
+  parentTicketId?: string;
+  problemCandidate?: boolean;
+  requestType?: RequestType;
   summary: string;
-  priority: TicketPriority;
+  priority?: TicketPriority;
+  urgency?: UrgencyLevel;
   linkedArticleIds?: string[];
 };
 
@@ -110,15 +141,30 @@ export function createInitialState(): SupportHubState {
 }
 
 export function addTicket(state: SupportHubState, input: AddTicketInput): SupportHubState {
+  const createdAt = new Date().toISOString();
+  const impact = input.impact ?? "Medium";
+  const urgency = input.urgency ?? "Medium";
+  const requestType = input.requestType ?? "Incident";
+  const priority = input.priority ?? derivePriority(impact, urgency);
   const ticket: Ticket = {
     id: nextTicketId(state),
     channel: input.channel,
     customer: input.customer,
     contact: input.contact,
+    contactEmail: input.contactEmail,
+    contactPhone: input.contactPhone,
+    category: input.category ?? "General",
+    createdAt,
+    impact,
+    parentTicketId: input.parentTicketId,
+    problemCandidate: input.problemCandidate ?? isProblemCandidate(requestType, impact, urgency, input.parentTicketId),
+    requestType,
     summary: input.summary,
-    priority: input.priority,
+    urgency,
+    priority,
     status: "New",
     linkedArticleIds: input.linkedArticleIds ?? [],
+    timeline: [{ message: "Ticket created", createdAt }],
   };
 
   return {
@@ -140,14 +186,25 @@ export function escalateChatToTicket(
   state: SupportHubState,
   input: EscalateChatInput,
 ): SupportHubState {
+  const createdAt = new Date().toISOString();
   const ticket: Ticket = {
     id: nextTicketId(state),
     channel: "Chat",
+    category: "General",
     customer: input.customer,
+    createdAt,
+    impact: "Medium",
+    problemCandidate: false,
+    requestType: "Incident",
     summary: summarizeChat(input.message),
+    urgency: "Medium",
     priority: "P2",
     status: "New",
     linkedArticleIds: input.suggestedArticleIds,
+    timeline: [
+      { message: "Chat requested agent", createdAt },
+      { message: "Ticket created", createdAt },
+    ],
   };
 
   return {
@@ -246,6 +303,28 @@ export function getChannelCounts(state: SupportHubState): ChannelCount[] {
 
     return [...counts, { channel: ticket.channel, count: 1 }];
   }, []);
+}
+
+export function derivePriority(impact: ImpactLevel, urgency: UrgencyLevel): TicketPriority {
+  if (impact === "High" && urgency === "High") {
+    return "P1";
+  }
+  if (impact === "High" || urgency === "High") {
+    return "P2";
+  }
+  if (impact === "Medium" || urgency === "Medium") {
+    return "P3";
+  }
+  return "P4";
+}
+
+function isProblemCandidate(
+  requestType: RequestType,
+  impact: ImpactLevel,
+  urgency: UrgencyLevel,
+  parentTicketId?: string,
+): boolean {
+  return requestType === "Incident" && (impact === "High" || urgency === "High" || Boolean(parentTicketId));
 }
 
 function nextTicketId(state: SupportHubState): string {

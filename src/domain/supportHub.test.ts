@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addTicket,
   createInitialState,
+  derivePriority,
   escalateChatToTicket,
   getChannelCounts,
   resolveCustomerAgentRequest,
@@ -26,6 +27,10 @@ describe("support hub domain", () => {
       channel: "Phone",
       priority: "P2",
     });
+    expect(next.tickets[0].timeline[0]).toMatchObject({
+      message: "Ticket created",
+      createdAt: expect.any(String),
+    });
     expect(next.events).toContainEqual(
       expect.objectContaining({
         type: "ticket.created",
@@ -34,6 +39,46 @@ describe("support hub domain", () => {
         customer: "Hadley Advisory",
       }),
     );
+  });
+
+  it("derives ITIL-style priority from impact and urgency", () => {
+    expect(derivePriority("High", "High")).toBe("P1");
+    expect(derivePriority("High", "Medium")).toBe("P2");
+    expect(derivePriority("Medium", "Medium")).toBe("P3");
+    expect(derivePriority("Low", "Low")).toBe("P4");
+  });
+
+  it("captures ITIL classification, problem candidates, and grouped tickets", () => {
+    const state = createInitialState();
+    const parent = addTicket(state, {
+      category: "Access",
+      channel: "Phone",
+      customer: "Hadley Advisory",
+      impact: "High",
+      requestType: "Incident",
+      summary: "Client portal outage",
+      urgency: "High",
+    });
+    const child = addTicket(parent, {
+      category: "Access",
+      channel: "Email",
+      customer: "Hadley Advisory",
+      impact: "High",
+      parentTicketId: "TCK-1001",
+      requestType: "Incident",
+      summary: "Second user cannot access client portal",
+      urgency: "Medium",
+    });
+
+    expect(child.tickets[0]).toMatchObject({
+      priority: "P1",
+      problemCandidate: true,
+      requestType: "Incident",
+    });
+    expect(child.tickets[1]).toMatchObject({
+      parentTicketId: "TCK-1001",
+      priority: "P2",
+    });
   });
 
   it("searches only published customer-visible knowledge articles", () => {
