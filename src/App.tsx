@@ -25,6 +25,7 @@ import {
   slaApi,
   type Customer,
   type Ticket,
+  type TicketMessage,
   type Article,
   type SlaPolicy,
   type SlaCompliance,
@@ -247,13 +248,23 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 
 const BLANK_TICKET = { customerId: "", customerName: "", summary: "", priority: "P3", category: "" };
+const TICKET_STATUSES = ["New", "Open", "Pending", "Resolved", "Closed"];
 
 function TicketsSurface() {
-  const [tickets, setTickets]     = useState<Ticket[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [formOpen, setFormOpen]   = useState(false);
-  const [form, setForm]           = useState(BLANK_TICKET);
-  const [saving, setSaving]       = useState(false);
+  const [tickets, setTickets]           = useState<Ticket[]>([]);
+  const [customers, setCustomers]       = useState<Customer[]>([]);
+  const [formOpen, setFormOpen]         = useState(false);
+  const [form, setForm]                 = useState(BLANK_TICKET);
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+  const [selected, setSelected]         = useState<Ticket | null>(null);
+  const [messages, setMessages]         = useState<TicketMessage[]>([]);
+  const [msgLoading, setMsgLoading]     = useState(false);
+  const [newStatus, setNewStatus]       = useState("");
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [noteBody, setNoteBody]         = useState("");
+  const [noteVis, setNoteVis]           = useState<"internal" | "customer">("internal");
+  const [noteSaving, setNoteSaving]     = useState(false);
 
   const reload = useCallback(() => {
     ticketsApi.list().then(setTickets).catch(console.error);
@@ -272,6 +283,7 @@ function TicketsSurface() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       await ticketsApi.create({
         customerId: form.customerId || undefined,
@@ -285,9 +297,49 @@ function TicketsSurface() {
       setFormOpen(false);
       reload();
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to create ticket");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openTicket(t: Ticket) {
+    setSelected(t);
+    setNewStatus(t.status);
+    setMessages([]);
+    setMsgLoading(true);
+    ticketsApi.getMessages(t.id)
+      .then(setMessages)
+      .catch(console.error)
+      .finally(() => setMsgLoading(false));
+  }
+
+  async function handleStatusUpdate() {
+    if (!selected || !newStatus || newStatus === selected.status) return;
+    setStatusSaving(true);
+    try {
+      const updated = await ticketsApi.updateStatus(selected.id, newStatus);
+      setSelected(updated);
+      setTickets((ts) => ts.map((t) => t.id === updated.id ? updated : t));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Status update failed");
+    } finally {
+      setStatusSaving(false);
+    }
+  }
+
+  async function handleAddNote(e: FormEvent) {
+    e.preventDefault();
+    if (!selected || !noteBody.trim()) return;
+    setNoteSaving(true);
+    try {
+      const msg = await ticketsApi.addMessage(selected.id, { authorName: "Agent", body: noteBody, visibility: noteVis });
+      setMessages((ms) => [...ms, msg]);
+      setNoteBody("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add note");
+    } finally {
+      setNoteSaving(false);
     }
   }
 
@@ -299,13 +351,14 @@ function TicketsSurface() {
             <p className="eyebrow">Agent workspace</p>
             <h3>Live queue</h3>
           </div>
-          <button className="primary-button" onClick={() => setFormOpen(true)} type="button">
+          <button className="primary-button" onClick={() => { setFormOpen(true); setError(null); }} type="button">
             <Plus size={16} /> New ticket
           </button>
         </div>
 
         {formOpen && (
           <form className="ticket-form" onSubmit={handleSubmit}>
+            {error && <div className="form-error span-2">{error}</div>}
             <label className="span-2">
               Customer
               <select value={form.customerId} onChange={(e) => handleCustomerChange(e.target.value)} required>
@@ -339,20 +392,81 @@ function TicketsSurface() {
           </form>
         )}
 
-        <TicketQueueTable tickets={tickets} />
+        <TicketQueueTable tickets={tickets} onSelect={openTicket} selectedId={selected?.id} />
       </div>
 
       <div className="operations-panel side-panel">
-        <h3>Queue summary</h3>
-        <Metric label="Total open"     value={String(tickets.filter((t) => !["Resolved","Closed"].includes(t.status)).length)} />
-        <Metric label="Unassigned"     value={String(tickets.filter((t) => t.status === "New").length)} />
-        <Metric label="P1 / P2 active" value={String(tickets.filter((t) => ["P1","P2"].includes(t.priority) && !["Resolved","Closed"].includes(t.status)).length)} />
+        {selected ? (
+          <div className="ticket-detail">
+            <div className="ticket-detail-header">
+              <div>
+                <p className="eyebrow">{selected.id}</p>
+                <h3 style={{ marginBottom: 4 }}>{selected.summary}</h3>
+                <p style={{ color: "#526174", margin: 0, fontSize: "0.9rem" }}>
+                  {selected.customer_name} · <span className={`priority priority-${selected.priority.toLowerCase()}`}>{selected.priority}</span> · {selected.channel}
+                </p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setSelected(null)} aria-label="Close"><X size={16} /></button>
+            </div>
+
+            <div className="ticket-detail-status">
+              <label style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 600, fontSize: "0.875rem" }}>Status</span>
+                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
+                  {TICKET_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+                <button className="primary-button" type="button" onClick={handleStatusUpdate} disabled={statusSaving || newStatus === selected.status}>
+                  {statusSaving ? "Saving…" : "Update"}
+                </button>
+              </label>
+            </div>
+
+            <div className="ticket-messages">
+              <h4 style={{ marginBottom: 8 }}>Notes &amp; activity</h4>
+              {msgLoading ? (
+                <p className="loading-text">Loading…</p>
+              ) : messages.length === 0 ? (
+                <p style={{ color: "#9aa5b4", fontSize: "0.875rem" }}>No notes yet.</p>
+              ) : messages.map((m) => (
+                <div key={m.id} className={`message-item ${m.visibility}`}>
+                  <div className="message-meta">
+                    <strong>{m.author_name}</strong>
+                    <span className={`badge visibility-${m.visibility}`}>{m.visibility === "internal" ? "Internal" : "Customer"}</span>
+                    <span className="message-time">{new Date(m.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                  <p className="message-body">{m.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <form className="note-form" onSubmit={handleAddNote}>
+              <h4>Add note</h4>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <span style={{ fontSize: "0.875rem" }}>Visibility</span>
+                <select value={noteVis} onChange={(e) => setNoteVis(e.target.value as "internal" | "customer")}>
+                  <option value="internal">Internal (agents only)</option>
+                  <option value="customer">Customer-facing</option>
+                </select>
+              </label>
+              <textarea rows={3} required value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note or update…" />
+              <button className="primary-button" type="submit" disabled={noteSaving}>{noteSaving ? "Saving…" : "Add note"}</button>
+            </form>
+          </div>
+        ) : (
+          <>
+            <h3>Queue summary</h3>
+            <Metric label="Total open"     value={String(tickets.filter((t) => !["Resolved","Closed"].includes(t.status)).length)} />
+            <Metric label="Unassigned"     value={String(tickets.filter((t) => t.status === "New").length)} />
+            <Metric label="P1 / P2 active" value={String(tickets.filter((t) => ["P1","P2"].includes(t.priority) && !["Resolved","Closed"].includes(t.status)).length)} />
+            <p style={{ color: "#9aa5b4", fontSize: "0.8rem", marginTop: 12 }}>Click a ticket to view details, update status, and add notes.</p>
+          </>
+        )}
       </div>
     </section>
   );
 }
 
-function TicketQueueTable({ tickets, compact }: { tickets: Ticket[]; compact?: boolean }) {
+function TicketQueueTable({ tickets, compact, onSelect, selectedId }: { tickets: Ticket[]; compact?: boolean; onSelect?: (t: Ticket) => void; selectedId?: string }) {
   return (
     <section aria-label="Ticket queue" className="queue-table">
       {!compact && (
@@ -367,7 +481,14 @@ function TicketQueueTable({ tickets, compact }: { tickets: Ticket[]; compact?: b
       {tickets.length === 0 ? (
         <div className="empty-state">No tickets yet.</div>
       ) : tickets.map((ticket) => (
-        <div className="queue-row" key={ticket.id}>
+        <div
+          className={`queue-row${onSelect ? " clickable" : ""}${selectedId === ticket.id ? " selected" : ""}`}
+          key={ticket.id}
+          onClick={() => onSelect?.(ticket)}
+          role={onSelect ? "button" : undefined}
+          tabIndex={onSelect ? 0 : undefined}
+          onKeyDown={(e) => e.key === "Enter" && onSelect?.(ticket)}
+        >
           <strong>{ticket.summary}</strong>
           <span>{ticket.customer_name}</span>
           <span className="badge">{ticket.channel}</span>
@@ -390,6 +511,7 @@ function CustomersSurface() {
   const [editing, setEditing]     = useState<Customer | null>(null);
   const [form, setForm]           = useState(BLANK_CUSTOMER);
   const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
   const reload = useCallback(() => {
     customersApi.list(search || undefined).then(setCustomers).catch(console.error);
@@ -400,18 +522,21 @@ function CustomersSurface() {
   function openCreate() {
     setEditing(null);
     setForm(BLANK_CUSTOMER);
+    setError(null);
     setFormOpen(true);
   }
 
   function openEdit(c: Customer) {
     setEditing(c);
     setForm({ name: c.name, phone: c.phone ?? "", email: c.email ?? "", department: c.department ?? "", location: c.location ?? "" });
+    setError(null);
     setFormOpen(true);
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       const payload = {
         name: form.name,
@@ -428,7 +553,7 @@ function CustomersSurface() {
       setFormOpen(false);
       reload();
     } catch (err) {
-      console.error(err);
+      setError(err instanceof Error ? err.message : "Save failed — please try again");
     } finally {
       setSaving(false);
     }
@@ -461,6 +586,7 @@ function CustomersSurface() {
 
         {formOpen && (
           <form className="ticket-form customer-form" onSubmit={handleSubmit}>
+            {error && <div className="form-error span-2">{error}</div>}
             <label>
               Full name
               <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
@@ -531,6 +657,7 @@ function KnowledgeSurface() {
   const [suggesting, setSuggesting] = useState(false);
   const [form, setForm]             = useState({ title: "", summary: "", body: "", category: "", audience: "Customer" });
   const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState<string | null>(null);
 
   const reload = useCallback(() => {
     articlesApi.list({ search: search || undefined }).then(setArticles).catch(console.error);
@@ -541,12 +668,14 @@ function KnowledgeSurface() {
   function openCreate() {
     setEditing(null);
     setForm({ title: "", summary: "", body: "", category: "", audience: "Customer" });
+    setSaveError(null);
     setView("editor");
   }
 
   function openEdit(a: Article) {
     setEditing(a);
     setForm({ title: a.title, summary: a.summary, body: a.body, category: a.category ?? "", audience: a.audience });
+    setSaveError(null);
     setView("editor");
   }
 
@@ -572,6 +701,7 @@ function KnowledgeSurface() {
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setSaveError(null);
     try {
       if (editing) {
         await articlesApi.update(editing.id, form);
@@ -581,7 +711,7 @@ function KnowledgeSurface() {
       setView("list");
       reload();
     } catch (err) {
-      console.error(err);
+      setSaveError(err instanceof Error ? err.message : "Save failed — please try again");
     } finally {
       setSaving(false);
     }
@@ -679,6 +809,7 @@ function KnowledgeSurface() {
               <button className="secondary-button" onClick={() => setView("list")} type="button"><X size={16} /> Cancel</button>
             </div>
             <form onSubmit={handleSave} style={{ display:"grid", gap:14 }}>
+              {saveError && <div className="form-error">{saveError}</div>}
               <label>Title<input required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></label>
               <label>Summary (1–2 sentences)<input required value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} /></label>
               <label>Category<input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="e.g. Access & Accounts, Hardware…" /></label>
@@ -712,22 +843,41 @@ const BLANK_SLA = { name: "", priority: "P3", category: "", firstResponseMinutes
 function SlaSurface() {
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing]   = useState<SlaPolicy | null>(null);
   const [form, setForm]         = useState(BLANK_SLA);
   const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
   const reload = useCallback(() => { slaApi.list().then(setPolicies).catch(console.error); }, []);
   useEffect(() => { reload(); }, [reload]);
 
+  function openCreate() {
+    setEditing(null);
+    setForm(BLANK_SLA);
+    setError(null);
+    setFormOpen(true);
+  }
+
+  function openEdit(p: SlaPolicy) {
+    setEditing(p);
+    setForm({ name: p.name, priority: p.priority, category: p.category ?? "", firstResponseMinutes: p.first_response_minutes, resolutionMinutes: p.resolution_minutes });
+    setError(null);
+    setFormOpen(true);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
     try {
       await slaApi.upsert({ name: form.name, priority: form.priority, category: form.category || undefined, firstResponseMinutes: Number(form.firstResponseMinutes), resolutionMinutes: Number(form.resolutionMinutes) });
       setForm(BLANK_SLA);
+      setEditing(null);
       setFormOpen(false);
       reload();
-    } catch (err) { console.error(err); }
-    finally { setSaving(false); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed — please try again");
+    } finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
@@ -747,19 +897,20 @@ function SlaSurface() {
       <div className="operations-panel">
         <div className="panel-heading">
           <div><p className="eyebrow">Response targets</p><h3>SLA policies</h3></div>
-          <button className="primary-button" onClick={() => setFormOpen(true)} type="button"><Plus size={16} /> Add policy</button>
+          <button className="primary-button" onClick={openCreate} type="button"><Plus size={16} /> Add policy</button>
         </div>
 
         {formOpen && (
           <form className="ticket-form" onSubmit={handleSubmit}>
+            {error && <div className="form-error span-2">{error}</div>}
             <label>Policy name<input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. P1 Critical" /></label>
             <label>Priority<select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}>{["P1","P2","P3","P4"].map((p) => <option key={p}>{p}</option>)}</select></label>
             <label>Category (optional)<input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="Incident, Service Request…" /></label>
             <label>First response (minutes)<input type="number" min={1} required value={form.firstResponseMinutes} onChange={(e) => setForm((f) => ({ ...f, firstResponseMinutes: Number(e.target.value) }))} /></label>
             <label>Resolution (minutes)<input type="number" min={1} required value={form.resolutionMinutes} onChange={(e) => setForm((f) => ({ ...f, resolutionMinutes: Number(e.target.value) }))} /></label>
             <div className="form-actions span-2">
-              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save policy"}</button>
-              <button className="secondary-button" type="button" onClick={() => setFormOpen(false)}>Cancel</button>
+              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Save policy"}</button>
+              <button className="secondary-button" type="button" onClick={() => { setFormOpen(false); setEditing(null); }}>Cancel</button>
             </div>
           </form>
         )}
@@ -777,7 +928,10 @@ function SlaSurface() {
               <span>{p.category ?? <em style={{ color:"#9aa5b4" }}>—</em>}</span>
               <span>{fmt(p.first_response_minutes)}</span>
               <span>{fmt(p.resolution_minutes)}</span>
-              <button className="icon-button danger" type="button" onClick={() => handleDelete(p.id)}><Trash2 size={14} /></button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button className="icon-button" type="button" onClick={() => openEdit(p)} aria-label="Edit"><Pencil size={14} /></button>
+                <button className="icon-button danger" type="button" onClick={() => handleDelete(p.id)} aria-label="Delete"><Trash2 size={14} /></button>
+              </div>
             </div>
           ))}
         </div>

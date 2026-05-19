@@ -4,6 +4,7 @@ import {
   createTicket,
   getTicket,
   listTickets,
+  listTicketMessages,
   updateTicketStatus,
   assignTicket,
   addTicketMessage,
@@ -62,6 +63,12 @@ export const ticketRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string };
     const { agentId, teamId } = request.body as { agentId: string; teamId?: string };
     return assignTicket(id, agentId, teamId);
+  });
+
+  // GET /api/v1/tickets/:id/messages
+  fastify.get("/:id/messages", async (request) => {
+    const { id } = request.params as { id: string };
+    return listTicketMessages(id);
   });
 
   // POST /api/v1/tickets/:id/messages

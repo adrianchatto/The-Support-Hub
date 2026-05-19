@@ -252,6 +252,15 @@ export async function assignTicket(
   return ticket;
 }
 
+export async function listTicketMessages(ticketId: string): Promise<TicketMessage[]> {
+  const pool = getPool();
+  const result = await pool.query<TicketMessage>(
+    `SELECT * FROM ticket_messages WHERE ticket_id = $1 ORDER BY created_at ASC`,
+    [ticketId]
+  );
+  return result.rows;
+}
+
 export async function addTicketMessage(
   input: AddTicketMessageInput
 ): Promise<TicketMessage> {

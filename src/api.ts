@@ -75,6 +75,15 @@ export type SlaCompliance = {
   compliance_pct: number;
 };
 
+export type TicketMessage = {
+  id: string;
+  ticket_id: string;
+  author_name: string;
+  body: string;
+  visibility: "internal" | "customer";
+  created_at: string;
+};
+
 export type ArticleSuggestion = {
   title: string;
   summary: string;
@@ -113,6 +122,10 @@ export const ticketsApi = {
   }) => request<Ticket>("/api/v1/tickets", { method: "POST", body: JSON.stringify(data) }),
   updateStatus: (id: string, status: string) =>
     request<Ticket>(`/api/v1/tickets/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  getMessages: (id: string) =>
+    request<TicketMessage[]>(`/api/v1/tickets/${id}/messages`),
+  addMessage: (id: string, data: { authorName: string; body: string; visibility: "internal" | "customer" }) =>
+    request<TicketMessage>(`/api/v1/tickets/${id}/messages`, { method: "POST", body: JSON.stringify(data) }),
 };
 
 // ─── Articles ─────────────────────────────────────────────────────────────────
