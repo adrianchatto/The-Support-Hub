@@ -1,88 +1,64 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
   BookOpen,
-  CheckCircle2,
-  Headphones,
+  ChevronDown,
+  CircleAlert,
+  Clock,
   LayoutDashboard,
   LockKeyhole,
-  MessageSquareText,
+  Pencil,
+  Plus,
   Search,
+  Settings,
   ShieldCheck,
-  Ticket,
+  Ticket as TicketIcon,
+  Trash2,
+  Users,
+  Wand2,
+  X,
 } from "lucide-react";
 import {
-  addTicket,
-  createInitialState,
-  getChannelCounts,
-  resolveCustomerAgentRequest,
-  searchPublishedArticles,
-} from "./domain/supportHub";
-import type { BotDecision, KnowledgeArticle, TicketPriority } from "./domain/supportHub";
+  customersApi,
+  ticketsApi,
+  articlesApi,
+  slaApi,
+  type Customer,
+  type Ticket,
+  type Article,
+  type SlaPolicy,
+  type SlaCompliance,
+  type ArticleSuggestion,
+} from "./api";
 import "./App.css";
 
-type Surface = "tickets" | "knowledge" | "customer-site" | "reporting";
+type Surface = "dashboard" | "tickets" | "customers" | "knowledge" | "sla" | "reporting";
 
-const surfaces: Array<{ id: Surface; label: string; icon: typeof Ticket }> = [
-  { id: "tickets", label: "Tickets", icon: Ticket },
-  { id: "knowledge", label: "Knowledge", icon: BookOpen },
-  { id: "customer-site", label: "Customer site", icon: Headphones },
-  { id: "reporting", label: "Reporting", icon: BarChart3 },
+const surfaces: Array<{ id: Surface; label: string; icon: typeof TicketIcon }> = [
+  { id: "dashboard",  label: "Dashboard",   icon: LayoutDashboard },
+  { id: "tickets",    label: "Tickets",      icon: TicketIcon },
+  { id: "customers",  label: "Customers",    icon: Users },
+  { id: "knowledge",  label: "Knowledge",    icon: BookOpen },
+  { id: "sla",        label: "SLA Config",   icon: Clock },
+  { id: "reporting",  label: "Reporting",    icon: BarChart3 },
 ];
 
-const emptyPhoneTicket = {
-  customer: "",
-  contact: "",
-  summary: "",
-  priority: "P3" as TicketPriority,
-};
+function surfaceTitle(s: Surface): string {
+  return ({
+    dashboard:  "Dashboard",
+    tickets:    "Ticket operations",
+    customers:  "Customer directory",
+    knowledge:  "Knowledge management",
+    sla:        "SLA configuration",
+    reporting:  "Management reporting",
+  } as Record<Surface, string>)[s];
+}
+
+// ─── App root ─────────────────────────────────────────────────────────────────
 
 function App() {
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [activeSurface, setActiveSurface] = useState<Surface>("tickets");
-  const [state, setState] = useState(() => createInitialState());
-  const [isPhoneFormOpen, setIsPhoneFormOpen] = useState(false);
-  const [phoneTicket, setPhoneTicket] = useState(emptyPhoneTicket);
-  const [knowledgeQuery, setKnowledgeQuery] = useState("");
-  const [portalQuery, setPortalQuery] = useState("");
-  const [botMessage, setBotMessage] = useState("");
-  const [botDecision, setBotDecision] = useState<BotDecision | null>(null);
-
-  const portalArticles = useMemo(
-    () => searchPublishedArticles(state, portalQuery),
-    [portalQuery, state],
-  );
-  const knowledgeArticles = useMemo(
-    () => searchPublishedArticles(state, knowledgeQuery || "password"),
-    [knowledgeQuery, state],
-  );
-  const channelCounts = useMemo(() => getChannelCounts(state), [state]);
-
-  function createPhoneTicket(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setState((currentState) =>
-      addTicket(currentState, {
-        channel: "Phone",
-        customer: phoneTicket.customer,
-        contact: phoneTicket.contact,
-        summary: phoneTicket.summary,
-        priority: phoneTicket.priority,
-      }),
-    );
-    setPhoneTicket(emptyPhoneTicket);
-    setIsPhoneFormOpen(false);
-  }
-
-  function requestAgent() {
-    const next = resolveCustomerAgentRequest(state, {
-      customer: "Hadley Advisory",
-      message: botMessage,
-    });
-
-    const { botDecision: decision, ...nextState } = next;
-    setState(nextState);
-    setBotDecision(decision);
-  }
+  const [activeSurface, setActiveSurface] = useState<Surface>("dashboard");
 
   if (!isSignedIn) {
     return <LoginScreen onSignIn={() => setIsSignedIn(true)} />;
@@ -129,57 +105,23 @@ function App() {
       <main className="main">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Dubai service desk pilot</p>
+            <p className="eyebrow">Service Desk</p>
             <h2>{surfaceTitle(activeSurface)}</h2>
-          </div>
-          <div className="topbar-actions">
-            <span className="status-pill">SLA risk: 2 watched</span>
-            <span className="status-pill">
-              <span>Knowledge gaps</span>
-              <strong>4</strong>
-            </span>
           </div>
         </header>
 
-        {activeSurface === "tickets" && (
-          <TicketsSurface
-            createPhoneTicket={createPhoneTicket}
-            isPhoneFormOpen={isPhoneFormOpen}
-            phoneTicket={phoneTicket}
-            setIsPhoneFormOpen={setIsPhoneFormOpen}
-            setPhoneTicket={setPhoneTicket}
-            tickets={state.tickets}
-          />
-        )}
-
-        {activeSurface === "knowledge" && (
-          <KnowledgeSurface
-            articles={knowledgeArticles}
-            knowledgeQuery={knowledgeQuery}
-            setKnowledgeQuery={setKnowledgeQuery}
-          />
-        )}
-
-        {activeSurface === "customer-site" && (
-          <CustomerSiteSurface
-            articles={portalArticles}
-            botDecision={botDecision}
-            botMessage={botMessage}
-            portalQuery={portalQuery}
-            requestAgent={requestAgent}
-            setBotDecision={setBotDecision}
-            setBotMessage={setBotMessage}
-            setPortalQuery={setPortalQuery}
-          />
-        )}
-
-        {activeSurface === "reporting" && (
-          <ReportingSurface channelCounts={channelCounts} ticketCount={state.tickets.length} />
-        )}
+        {activeSurface === "dashboard"  && <DashboardSurface onNavigate={setActiveSurface} />}
+        {activeSurface === "tickets"    && <TicketsSurface />}
+        {activeSurface === "customers"  && <CustomersSurface />}
+        {activeSurface === "knowledge"  && <KnowledgeSurface />}
+        {activeSurface === "sla"        && <SlaSurface />}
+        {activeSurface === "reporting"  && <ReportingSurface />}
       </main>
     </div>
   );
 }
+
+// ─── Login ────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onSignIn }: { onSignIn: () => void }) {
   return (
@@ -213,21 +155,142 @@ function LoginScreen({ onSignIn }: { onSignIn: () => void }) {
   );
 }
 
-function TicketsSurface({
-  createPhoneTicket,
-  isPhoneFormOpen,
-  phoneTicket,
-  setIsPhoneFormOpen,
-  setPhoneTicket,
-  tickets,
-}: {
-  createPhoneTicket: (event: FormEvent<HTMLFormElement>) => void;
-  isPhoneFormOpen: boolean;
-  phoneTicket: typeof emptyPhoneTicket;
-  setIsPhoneFormOpen: (value: boolean) => void;
-  setPhoneTicket: (value: typeof emptyPhoneTicket | ((value: typeof emptyPhoneTicket) => typeof emptyPhoneTicket)) => void;
-  tickets: ReturnType<typeof createInitialState>["tickets"];
-}) {
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+function DashboardSurface({ onNavigate }: { onNavigate: (s: Surface) => void }) {
+  const [tickets, setTickets]       = useState<Ticket[]>([]);
+  const [compliance, setCompliance] = useState<SlaCompliance | null>(null);
+  const [loading, setLoading]       = useState(true);
+
+  useEffect(() => {
+    Promise.all([ticketsApi.list(), slaApi.compliance()])
+      .then(([t, c]) => { setTickets(t); setCompliance(c); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const open     = tickets.filter((t) => !["Resolved", "Closed"].includes(t.status));
+  const newCount = tickets.filter((t) => t.status === "New").length;
+  const p1Count  = tickets.filter((t) => t.priority === "P1" && !["Resolved","Closed"].includes(t.status)).length;
+
+  return (
+    <div className="dashboard-grid">
+      <section className="operations-panel rag-panel" aria-label="SLA compliance">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">SLA status</p>
+            <h3>Real-time compliance</h3>
+          </div>
+          <button className="secondary-button" onClick={() => onNavigate("sla")} type="button">
+            <Settings size={16} /> Configure
+          </button>
+        </div>
+        {loading ? (
+          <p className="loading-text">Loading…</p>
+        ) : compliance ? (
+          <div className="rag-grid">
+            <RagCard label="Within SLA"  count={compliance.green} status="green" />
+            <RagCard label="At risk"     count={compliance.amber} status="amber" />
+            <RagCard label="Breached"    count={compliance.red}   status="red"   />
+            <div className="rag-compliance-badge">
+              <span>Overall compliance</span>
+              <strong className={
+                compliance.compliance_pct >= 90 ? "rag-green"
+                : compliance.compliance_pct >= 70 ? "rag-amber"
+                : "rag-red"
+              }>{compliance.compliance_pct}%</strong>
+            </div>
+          </div>
+        ) : (
+          <p className="loading-text">No SLA data available.</p>
+        )}
+      </section>
+
+      <section className="dashboard-stats" aria-label="Ticket summary">
+        <StatCard label="Open tickets"     value={String(open.length)}   icon={<TicketIcon size={20} />} />
+        <StatCard label="New / unassigned" value={String(newCount)}      icon={<CircleAlert size={20} />} />
+        <StatCard label="P1 active"        value={String(p1Count)}       icon={<ChevronDown size={20} />} />
+      </section>
+
+      <section className="operations-panel recent-tickets-panel" aria-label="Recent tickets">
+        <div className="panel-heading">
+          <h3>Recent tickets</h3>
+          <button className="secondary-button" onClick={() => onNavigate("tickets")} type="button">
+            View all
+          </button>
+        </div>
+        <TicketQueueTable tickets={tickets.slice(0, 8)} compact />
+      </section>
+    </div>
+  );
+}
+
+function RagCard({ label, count, status }: { label: string; count: number; status: "green" | "amber" | "red" }) {
+  return (
+    <div className={`rag-card rag-${status}`}>
+      <strong>{count}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="stat-card operations-panel">
+      <div className="stat-icon">{icon}</div>
+      <strong className="stat-value">{value}</strong>
+      <span className="stat-label">{label}</span>
+    </div>
+  );
+}
+
+// ─── Tickets ──────────────────────────────────────────────────────────────────
+
+const BLANK_TICKET = { customerId: "", customerName: "", summary: "", priority: "P3", category: "" };
+
+function TicketsSurface() {
+  const [tickets, setTickets]     = useState<Ticket[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [formOpen, setFormOpen]   = useState(false);
+  const [form, setForm]           = useState(BLANK_TICKET);
+  const [saving, setSaving]       = useState(false);
+
+  const reload = useCallback(() => {
+    ticketsApi.list().then(setTickets).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    reload();
+    customersApi.list().then(setCustomers).catch(console.error);
+  }, [reload]);
+
+  function handleCustomerChange(id: string) {
+    const c = customers.find((c) => c.id === id);
+    setForm((f) => ({ ...f, customerId: id, customerName: c?.name ?? "" }));
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await ticketsApi.create({
+        customerId: form.customerId || undefined,
+        customerName: form.customerName,
+        summary: form.summary,
+        channel: "Phone",
+        priority: form.priority,
+        category: form.category || undefined,
+      });
+      setForm(BLANK_TICKET);
+      setFormOpen(false);
+      reload();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className="surface-grid">
       <div className="operations-panel queue-panel">
@@ -236,279 +299,550 @@ function TicketsSurface({
             <p className="eyebrow">Agent workspace</p>
             <h3>Live queue</h3>
           </div>
-          <button className="primary-button" onClick={() => setIsPhoneFormOpen(true)} type="button">
-            New phone ticket
+          <button className="primary-button" onClick={() => setFormOpen(true)} type="button">
+            <Plus size={16} /> New ticket
           </button>
         </div>
 
-        {isPhoneFormOpen && (
-          <form className="ticket-form" onSubmit={createPhoneTicket}>
-            <label>
+        {formOpen && (
+          <form className="ticket-form" onSubmit={handleSubmit}>
+            <label className="span-2">
               Customer
-              <input
-                onChange={(event) =>
-                  setPhoneTicket((ticket) => ({ ...ticket, customer: event.target.value }))
-                }
-                required
-                value={phoneTicket.customer}
-              />
-            </label>
-            <label>
-              Contact
-              <input
-                onChange={(event) =>
-                  setPhoneTicket((ticket) => ({ ...ticket, contact: event.target.value }))
-                }
-                required
-                value={phoneTicket.contact}
-              />
+              <select value={form.customerId} onChange={(e) => handleCustomerChange(e.target.value)} required>
+                <option value="">— select customer —</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.department ? ` · ${c.department}` : ""}
+                    {c.phone ? ` · ${c.phone}` : ""}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="span-2">
               Issue summary
-              <input
-                onChange={(event) =>
-                  setPhoneTicket((ticket) => ({ ...ticket, summary: event.target.value }))
-                }
-                required
-                value={phoneTicket.summary}
-              />
+              <input required value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} />
             </label>
             <label>
               Priority
-              <select
-                onChange={(event) =>
-                  setPhoneTicket((ticket) => ({
-                    ...ticket,
-                    priority: event.target.value as TicketPriority,
-                  }))
-                }
-                value={phoneTicket.priority}
-              >
-                <option value="P1">P1</option>
-                <option value="P2">P2</option>
-                <option value="P3">P3</option>
-                <option value="P4">P4</option>
+              <select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}>
+                {["P1","P2","P3","P4"].map((p) => <option key={p}>{p}</option>)}
               </select>
             </label>
-            <button className="primary-button" type="submit">
-              Create ticket
-            </button>
+            <label>
+              Category
+              <input placeholder="e.g. Access, Hardware…" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+            </label>
+            <div className="form-actions span-2">
+              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Creating…" : "Create ticket"}</button>
+              <button className="secondary-button" type="button" onClick={() => setFormOpen(false)}>Cancel</button>
+            </div>
           </form>
         )}
 
-        <section aria-label="Agent ticket queue" className="queue-table">
-          <div className="queue-header">
-            <span>Summary</span>
-            <span>Customer</span>
-            <span>Channel</span>
-            <span>Priority</span>
-            <span>Status</span>
-          </div>
-          {tickets.length === 0 ? (
-            <div className="empty-state">No active tickets yet.</div>
-          ) : (
-            tickets.map((ticket) => (
-              <div className="queue-row" key={ticket.id}>
-                <strong>{ticket.summary}</strong>
-                <span>{ticket.customer}</span>
-                <span className="badge">{ticket.channel}</span>
-                <span className={`priority ${ticket.priority.toLowerCase()}`}>{ticket.priority}</span>
-                <span>{ticket.status}</span>
-              </div>
-            ))
-          )}
-        </section>
+        <TicketQueueTable tickets={tickets} />
       </div>
 
       <div className="operations-panel side-panel">
-        <h3>SLA risk</h3>
-        <Metric label="Due soon" value="2" />
-        <Metric label="Awaiting customer" value="7" />
-        <Metric label="Unassigned" value="3" />
+        <h3>Queue summary</h3>
+        <Metric label="Total open"     value={String(tickets.filter((t) => !["Resolved","Closed"].includes(t.status)).length)} />
+        <Metric label="Unassigned"     value={String(tickets.filter((t) => t.status === "New").length)} />
+        <Metric label="P1 / P2 active" value={String(tickets.filter((t) => ["P1","P2"].includes(t.priority) && !["Resolved","Closed"].includes(t.status)).length)} />
       </div>
     </section>
   );
 }
 
-function KnowledgeSurface({
-  articles,
-  knowledgeQuery,
-  setKnowledgeQuery,
-}: {
-  articles: KnowledgeArticle[];
-  knowledgeQuery: string;
-  setKnowledgeQuery: (value: string) => void;
-}) {
+function TicketQueueTable({ tickets, compact }: { tickets: Ticket[]; compact?: boolean }) {
   return (
-    <section className="knowledge-layout">
+    <section aria-label="Ticket queue" className="queue-table">
+      {!compact && (
+        <div className="queue-header">
+          <span>Summary</span>
+          <span>Customer</span>
+          <span>Channel</span>
+          <span>Priority</span>
+          <span>Status</span>
+        </div>
+      )}
+      {tickets.length === 0 ? (
+        <div className="empty-state">No tickets yet.</div>
+      ) : tickets.map((ticket) => (
+        <div className="queue-row" key={ticket.id}>
+          <strong>{ticket.summary}</strong>
+          <span>{ticket.customer_name}</span>
+          <span className="badge">{ticket.channel}</span>
+          <span className={`priority priority-${ticket.priority.toLowerCase()}`}>{ticket.priority}</span>
+          <span>{ticket.status}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────────
+
+const BLANK_CUSTOMER = { name: "", phone: "", email: "", department: "", location: "" };
+
+function CustomersSurface() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [search, setSearch]       = useState("");
+  const [formOpen, setFormOpen]   = useState(false);
+  const [editing, setEditing]     = useState<Customer | null>(null);
+  const [form, setForm]           = useState(BLANK_CUSTOMER);
+  const [saving, setSaving]       = useState(false);
+
+  const reload = useCallback(() => {
+    customersApi.list(search || undefined).then(setCustomers).catch(console.error);
+  }, [search]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  function openCreate() {
+    setEditing(null);
+    setForm(BLANK_CUSTOMER);
+    setFormOpen(true);
+  }
+
+  function openEdit(c: Customer) {
+    setEditing(c);
+    setForm({ name: c.name, phone: c.phone ?? "", email: c.email ?? "", department: c.department ?? "", location: c.location ?? "" });
+    setFormOpen(true);
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name,
+        phone: form.phone || undefined,
+        email: form.email || undefined,
+        department: form.department || undefined,
+        location: form.location || undefined,
+      };
+      if (editing) {
+        await customersApi.update(editing.id, payload);
+      } else {
+        await customersApi.create(payload);
+      }
+      setFormOpen(false);
+      reload();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this customer?")) return;
+    await customersApi.delete(id).catch(console.error);
+    reload();
+  }
+
+  return (
+    <section className="surface-grid">
       <div className="operations-panel">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">Knowledge hub</p>
-            <h3>Article library</h3>
+            <p className="eyebrow">People</p>
+            <h3>Customer directory</h3>
           </div>
-          <button className="secondary-button" type="button">
-            Draft article
+          <button className="primary-button" onClick={openCreate} type="button">
+            <Plus size={16} /> Add customer
           </button>
         </div>
+
         <label className="search-field">
           <Search aria-hidden="true" size={18} />
-          Search knowledge
-          <input
-            onChange={(event) => setKnowledgeQuery(event.target.value)}
-            placeholder="Search published articles"
-            value={knowledgeQuery}
-          />
+          Search customers
+          <input placeholder="Name, email or department…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
-        <ArticleResults articles={articles} />
+
+        {formOpen && (
+          <form className="ticket-form customer-form" onSubmit={handleSubmit}>
+            <label>
+              Full name
+              <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            </label>
+            <label>
+              Phone number
+              <input type="tel" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            </label>
+            <label>
+              Email address
+              <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </label>
+            <label>
+              Department
+              <input value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
+            </label>
+            <label className="span-2">
+              Location / site
+              <input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+            </label>
+            <div className="form-actions span-2">
+              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : editing ? "Save changes" : "Add customer"}</button>
+              <button className="secondary-button" type="button" onClick={() => setFormOpen(false)}>Cancel</button>
+            </div>
+          </form>
+        )}
+
+        <div className="customer-list">
+          {customers.length === 0 ? (
+            <div className="empty-state">No customers yet. Add the first one above.</div>
+          ) : customers.map((c) => (
+            <div className="customer-row" key={c.id}>
+              <div className="customer-avatar">{c.name.charAt(0).toUpperCase()}</div>
+              <div className="customer-info">
+                <strong>{c.name}</strong>
+                <span className="customer-meta">
+                  {[c.phone, c.email, c.department, c.location].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+              <div className="customer-actions">
+                <button className="icon-button" type="button" onClick={() => openEdit(c)} aria-label="Edit"><Pencil size={15} /></button>
+                <button className="icon-button danger" type="button" onClick={() => handleDelete(c.id)} aria-label="Delete"><Trash2 size={15} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
+
+      <div className="operations-panel side-panel">
+        <h3>Directory stats</h3>
+        <Metric label="Total customers" value={String(customers.length)} />
+      </div>
+    </section>
+  );
+}
+
+// ─── Knowledge ────────────────────────────────────────────────────────────────
+
+type KbView = "list" | "editor" | "suggest";
+
+function KnowledgeSurface() {
+  const [articles, setArticles]     = useState<Article[]>([]);
+  const [search, setSearch]         = useState("");
+  const [view, setView]             = useState<KbView>("list");
+  const [editing, setEditing]       = useState<Article | null>(null);
+  const [suggestion, setSuggestion] = useState<ArticleSuggestion | null>(null);
+  const [chatInput, setChatInput]   = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const [form, setForm]             = useState({ title: "", summary: "", body: "", category: "", audience: "Customer" });
+  const [saving, setSaving]         = useState(false);
+
+  const reload = useCallback(() => {
+    articlesApi.list({ search: search || undefined }).then(setArticles).catch(console.error);
+  }, [search]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  function openCreate() {
+    setEditing(null);
+    setForm({ title: "", summary: "", body: "", category: "", audience: "Customer" });
+    setView("editor");
+  }
+
+  function openEdit(a: Article) {
+    setEditing(a);
+    setForm({ title: a.title, summary: a.summary, body: a.body, category: a.category ?? "", audience: a.audience });
+    setView("editor");
+  }
+
+  function applySuggestion(s: ArticleSuggestion) {
+    setForm({ title: s.title, summary: s.summary, body: s.body, category: s.category, audience: "Customer" });
+    setEditing(null);
+    setView("editor");
+  }
+
+  async function handleSuggest(e: FormEvent) {
+    e.preventDefault();
+    setSuggesting(true);
+    try {
+      const s = await articlesApi.suggest(chatInput);
+      setSuggestion(s);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  async function handleSave(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editing) {
+        await articlesApi.update(editing.id, form);
+      } else {
+        await articlesApi.create({ ...form, tags: [] });
+      }
+      setView("list");
+      reload();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePublish(id: string) { await articlesApi.publish(id).catch(console.error); reload(); }
+  async function handleArchive(id: string) { await articlesApi.archive(id).catch(console.error); reload(); }
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this article?")) return;
+    await articlesApi.delete(id).catch(console.error);
+    reload();
+  }
+
+  const drafts    = articles.filter((a) => a.status === "Draft").length;
+  const published = articles.filter((a) => a.status === "Published").length;
+
+  return (
+    <section className="knowledge-layout">
+      <div className="operations-panel">
+        {view === "list" && (
+          <>
+            <div className="panel-heading">
+              <div><p className="eyebrow">Knowledge hub</p><h3>Article library</h3></div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button className="secondary-button" onClick={() => { setSuggestion(null); setView("suggest"); }} type="button">
+                  <Wand2 size={16} /> AI suggest
+                </button>
+                <button className="primary-button" onClick={openCreate} type="button">
+                  <Plus size={16} /> Draft article
+                </button>
+              </div>
+            </div>
+            <label className="search-field">
+              <Search aria-hidden="true" size={18} />
+              Search knowledge
+              <input placeholder="Search articles…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </label>
+            <div className="article-list">
+              {articles.length === 0 ? (
+                <div className="empty-state">No articles found.</div>
+              ) : articles.map((a) => (
+                <article className="article-row" key={a.id}>
+                  <BookOpen aria-hidden="true" size={20} />
+                  <div><h4>{a.title}</h4><p>{a.summary}</p></div>
+                  <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                    <span className={`badge status-badge-${a.status.toLowerCase()}`}>{a.status}</span>
+                    <button className="icon-button" type="button" onClick={() => openEdit(a)}><Pencil size={14} /></button>
+                    {a.status === "Draft"     && <button className="secondary-button small" type="button" onClick={() => handlePublish(a.id)}>Publish</button>}
+                    {a.status === "Published" && <button className="secondary-button small" type="button" onClick={() => handleArchive(a.id)}>Archive</button>}
+                    <button className="icon-button danger" type="button" onClick={() => handleDelete(a.id)}><Trash2 size={14} /></button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+
+        {view === "suggest" && (
+          <>
+            <div className="panel-heading">
+              <div><p className="eyebrow">AI assistance</p><h3>Suggest an article</h3></div>
+              <button className="secondary-button" onClick={() => setView("list")} type="button"><X size={16} /> Cancel</button>
+            </div>
+            <p style={{ color:"#526174", marginTop:0 }}>
+              Paste a support conversation or describe an issue. Claude will draft a knowledge base article you can review and publish.
+            </p>
+            <form onSubmit={handleSuggest} style={{ display:"grid", gap:14 }}>
+              <label>
+                Conversation or issue summary
+                <textarea rows={6} required value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="e.g. Customer couldn't access email after password reset — MFA was also reset and needed re-enrolment via Authenticator app…" />
+              </label>
+              <button className="primary-button" type="submit" disabled={suggesting}>
+                {suggesting ? "Thinking…" : "Generate article draft"}
+              </button>
+            </form>
+            {suggestion && (
+              <div className="suggestion-preview">
+                <h4>{suggestion.title}</h4>
+                <p style={{ color:"#526174" }}>{suggestion.summary}</p>
+                <pre className="article-body-preview">{suggestion.body}</pre>
+                <div style={{ display:"flex", gap:10, marginTop:14 }}>
+                  <button className="primary-button" type="button" onClick={() => applySuggestion(suggestion)}>Edit &amp; publish</button>
+                  <button className="secondary-button" type="button" onClick={() => setSuggestion(null)}>Discard</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {view === "editor" && (
+          <>
+            <div className="panel-heading">
+              <div><p className="eyebrow">{editing ? "Editing article" : "New article"}</p><h3>{editing ? editing.title : "Draft"}</h3></div>
+              <button className="secondary-button" onClick={() => setView("list")} type="button"><X size={16} /> Cancel</button>
+            </div>
+            <form onSubmit={handleSave} style={{ display:"grid", gap:14 }}>
+              <label>Title<input required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></label>
+              <label>Summary (1–2 sentences)<input required value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} /></label>
+              <label>Category<input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="e.g. Access & Accounts, Hardware…" /></label>
+              <label>
+                Audience
+                <select value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value }))}>
+                  <option>Customer</option><option>Internal</option><option>Both</option>
+                </select>
+              </label>
+              <label>Body (Markdown supported)<textarea rows={14} required value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} /></label>
+              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save draft"}</button>
+            </form>
+          </>
+        )}
+      </div>
+
       <aside className="operations-panel side-panel">
-        <h3>Knowledge gaps</h3>
-        <Metric label="Repeated questions" value="18" />
-        <Metric label="Low-helpfulness articles" value="5" />
-        <Metric label="Drafts awaiting review" value="9" />
+        <h3>Article stats</h3>
+        <Metric label="Total articles"  value={String(articles.length)} />
+        <Metric label="Published"       value={String(published)} />
+        <Metric label="Awaiting review" value={String(drafts)} />
       </aside>
     </section>
   );
 }
 
-function CustomerSiteSurface({
-  articles,
-  botDecision,
-  botMessage,
-  portalQuery,
-  requestAgent,
-  setBotDecision,
-  setBotMessage,
-  setPortalQuery,
-}: {
-  articles: KnowledgeArticle[];
-  botDecision: BotDecision | null;
-  botMessage: string;
-  portalQuery: string;
-  requestAgent: () => void;
-  setBotDecision: (value: BotDecision | null) => void;
-  setBotMessage: (value: string) => void;
-  setPortalQuery: (value: string) => void;
-}) {
+// ─── SLA Config ───────────────────────────────────────────────────────────────
+
+const BLANK_SLA = { name: "", priority: "P3", category: "", firstResponseMinutes: 240, resolutionMinutes: 1440 };
+
+function SlaSurface() {
+  const [policies, setPolicies] = useState<SlaPolicy[]>([]);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm]         = useState(BLANK_SLA);
+  const [saving, setSaving]     = useState(false);
+
+  const reload = useCallback(() => { slaApi.list().then(setPolicies).catch(console.error); }, []);
+  useEffect(() => { reload(); }, [reload]);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await slaApi.upsert({ name: form.name, priority: form.priority, category: form.category || undefined, firstResponseMinutes: Number(form.firstResponseMinutes), resolutionMinutes: Number(form.resolutionMinutes) });
+      setForm(BLANK_SLA);
+      setFormOpen(false);
+      reload();
+    } catch (err) { console.error(err); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this SLA policy?")) return;
+    await slaApi.delete(id).catch(console.error);
+    reload();
+  }
+
+  function fmt(m: number): string {
+    if (m < 60)   return `${m}m`;
+    if (m < 1440) return `${Math.round(m / 60)}h`;
+    return `${Math.round(m / 1440)}d`;
+  }
+
   return (
-    <section className="customer-site" aria-labelledby="customer-site-heading">
-      <header className="customer-hero">
-        <div>
-          <p className="eyebrow">Customer support website</p>
-          <h2 id="customer-site-heading">Hadley Advisory Support</h2>
-          <p>Search service guidance, check active requests, or ask for help.</p>
-        </div>
-        <div className="portal-status">
-          <CheckCircle2 aria-hidden="true" size={18} />
-          Client access active
-        </div>
-      </header>
-
-      <div className="customer-grid">
-        <div className="portal-search operations-panel">
-          <label className="search-field">
-            <Search aria-hidden="true" size={18} />
-            Search knowledge
-            <input
-              onChange={(event) => setPortalQuery(event.target.value)}
-              placeholder="Search support articles"
-              value={portalQuery}
-            />
-          </label>
-          <ArticleResults articles={articles} />
+    <section className="surface-grid">
+      <div className="operations-panel">
+        <div className="panel-heading">
+          <div><p className="eyebrow">Response targets</p><h3>SLA policies</h3></div>
+          <button className="primary-button" onClick={() => setFormOpen(true)} type="button"><Plus size={16} /> Add policy</button>
         </div>
 
-        <div className="operations-panel bot-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Assistant</p>
-              <h3>Service concierge</h3>
+        {formOpen && (
+          <form className="ticket-form" onSubmit={handleSubmit}>
+            <label>Policy name<input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. P1 Critical" /></label>
+            <label>Priority<select value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}>{["P1","P2","P3","P4"].map((p) => <option key={p}>{p}</option>)}</select></label>
+            <label>Category (optional)<input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} placeholder="Incident, Service Request…" /></label>
+            <label>First response (minutes)<input type="number" min={1} required value={form.firstResponseMinutes} onChange={(e) => setForm((f) => ({ ...f, firstResponseMinutes: Number(e.target.value) }))} /></label>
+            <label>Resolution (minutes)<input type="number" min={1} required value={form.resolutionMinutes} onChange={(e) => setForm((f) => ({ ...f, resolutionMinutes: Number(e.target.value) }))} /></label>
+            <div className="form-actions span-2">
+              <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save policy"}</button>
+              <button className="secondary-button" type="button" onClick={() => setFormOpen(false)}>Cancel</button>
             </div>
-            <MessageSquareText aria-hidden="true" size={22} />
+          </form>
+        )}
+
+        <div className="sla-table">
+          <div className="sla-header">
+            <span>Name</span><span>Priority</span><span>Category</span><span>First response</span><span>Resolution</span><span></span>
           </div>
-          <label>
-            Ask the support bot
-            <textarea
-              onChange={(event) => {
-                setBotMessage(event.target.value);
-                setBotDecision(null);
-              }}
-              rows={6}
-              value={botMessage}
-            />
-          </label>
-          <button
-            className="primary-button"
-            disabled={botMessage.trim().length === 0}
-            onClick={requestAgent}
-            type="button"
-          >
-            Ask to speak to an agent
-          </button>
-          {botDecision && <p className={`bot-decision ${botDecision.outcome}`}>{botDecision.message}</p>}
+          {policies.length === 0 ? (
+            <div className="empty-state">No SLA policies configured.</div>
+          ) : policies.map((p) => (
+            <div className="sla-row" key={p.id}>
+              <strong>{p.name}</strong>
+              <span className={`priority priority-${p.priority.toLowerCase()}`}>{p.priority}</span>
+              <span>{p.category ?? <em style={{ color:"#9aa5b4" }}>—</em>}</span>
+              <span>{fmt(p.first_response_minutes)}</span>
+              <span>{fmt(p.resolution_minutes)}</span>
+              <button className="icon-button danger" type="button" onClick={() => handleDelete(p.id)}><Trash2 size={14} /></button>
+            </div>
+          ))}
         </div>
+      </div>
+
+      <div className="operations-panel side-panel">
+        <h3>About SLAs</h3>
+        <p style={{ color:"#526174", fontSize:"0.9rem", lineHeight:1.6 }}>
+          Policies define response targets by priority and category. The dashboard RAG chart reflects live compliance.
+        </p>
+        <p style={{ color:"#526174", fontSize:"0.9rem", lineHeight:1.6 }}>
+          <strong>Amber</strong> = within 80% of window used.<br />
+          <strong>Red</strong> = breached.
+        </p>
       </div>
     </section>
   );
 }
 
-function ReportingSurface({
-  channelCounts,
-  ticketCount,
-}: {
-  channelCounts: Array<{ channel: string; count: number }>;
-  ticketCount: number;
-}) {
+// ─── Reporting ────────────────────────────────────────────────────────────────
+
+function ReportingSurface() {
+  const [tickets, setTickets]       = useState<Ticket[]>([]);
+  const [compliance, setCompliance] = useState<SlaCompliance | null>(null);
+
+  useEffect(() => {
+    ticketsApi.list().then(setTickets).catch(console.error);
+    slaApi.compliance().then(setCompliance).catch(console.error);
+  }, []);
+
+  const byChannel = Object.entries(
+    tickets.reduce<Record<string, number>>((acc, t) => { acc[t.channel] = (acc[t.channel] ?? 0) + 1; return acc; }, {})
+  ).sort((a, b) => b[1] - a[1]);
+
+  const byPriority = Object.entries(
+    tickets.reduce<Record<string, number>>((acc, t) => { acc[t.priority] = (acc[t.priority] ?? 0) + 1; return acc; }, {})
+  ).sort((a, b) => a[0].localeCompare(b[0]));
+
   return (
     <section className="reporting-grid">
-      <div className="metric-card">
-        <LayoutDashboard aria-hidden="true" size={22} />
-        <Metric label="Open tickets" value={String(ticketCount)} />
-      </div>
-      <div className="metric-card">
-        <Metric label="SLA compliance" value="94%" />
-      </div>
-      <div className="metric-card">
-        <Metric label="Self-service rate" value="31%" />
-      </div>
+      <div className="operations-panel metric-card"><Metric label="Total tickets"  value={String(tickets.length)} /></div>
+      <div className="operations-panel metric-card"><Metric label="SLA compliance" value={compliance ? `${compliance.compliance_pct}%` : "—"} /></div>
+      <div className="operations-panel metric-card"><Metric label="Open tickets"   value={String(tickets.filter((t) => !["Resolved","Closed"].includes(t.status)).length)} /></div>
+
       <section className="operations-panel reporting-panel">
         <h3>Tickets by channel</h3>
-        {channelCounts.length === 0 ? (
-          <div className="empty-state">No ticket volume yet.</div>
-        ) : (
-          channelCounts.map((item) => (
-            <div className="report-row" key={item.channel}>
-              <span>{item.channel}</span>
-              <strong>{`${item.count} ${item.count === 1 ? "ticket" : "tickets"}`}</strong>
-            </div>
-          ))
-        )}
+        {byChannel.length === 0 ? <div className="empty-state">No ticket volume yet.</div> : byChannel.map(([ch, n]) => (
+          <div className="report-row" key={ch}><span>{ch}</span><strong>{n} {n === 1 ? "ticket" : "tickets"}</strong></div>
+        ))}
+      </section>
+
+      <section className="operations-panel reporting-panel">
+        <h3>Tickets by priority</h3>
+        {byPriority.length === 0 ? <div className="empty-state">No ticket volume yet.</div> : byPriority.map(([pr, n]) => (
+          <div className="report-row" key={pr}>
+            <span className={`priority priority-${pr.toLowerCase()}`}>{pr}</span>
+            <strong>{n} {n === 1 ? "ticket" : "tickets"}</strong>
+          </div>
+        ))}
       </section>
     </section>
   );
 }
 
-function ArticleResults({ articles }: { articles: KnowledgeArticle[] }) {
-  if (articles.length === 0) {
-    return <div className="empty-state">No articles match that search.</div>;
-  }
-
-  return (
-    <div className="article-list">
-      {articles.map((article) => (
-        <article aria-label={article.title} className="article-row" key={article.id}>
-          <BookOpen aria-hidden="true" size={20} />
-          <div>
-            <h4>{article.title}</h4>
-            <p>{article.summary}</p>
-          </div>
-          <span className="badge">{article.status}</span>
-        </article>
-      ))}
-    </div>
-  );
-}
+// ─── Shared ───────────────────────────────────────────────────────────────────
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -517,17 +851,6 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
-}
-
-function surfaceTitle(surface: Surface): string {
-  const titles: Record<Surface, string> = {
-    tickets: "Ticket operations",
-    knowledge: "Knowledge management",
-    "customer-site": "Customer website",
-    reporting: "Management reporting",
-  };
-
-  return titles[surface];
 }
 
 export default App;

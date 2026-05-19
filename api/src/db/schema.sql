@@ -202,3 +202,14 @@ VALUES
   ('P3 Medium',    'P3', 240,  1440),
   ('P4 Low',       'P4', 480,  2880)
 ON CONFLICT (name) DO NOTHING;
+
+-- ─── Schema evolution (idempotent ALTERs) ─────────────────────────────────────
+
+-- customers: individual people fields
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS phone      TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS email      TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS department TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS location   TEXT;
+
+-- sla_policies: optional category scoping (e.g. "Incident", "Service Request")
+ALTER TABLE sla_policies ADD COLUMN IF NOT EXISTS category TEXT;
