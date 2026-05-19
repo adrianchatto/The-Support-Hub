@@ -96,7 +96,8 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput): Pr
 
 export async function deleteCustomer(id: string): Promise<void> {
   const pool = getPool();
-  // Nullify ticket references before deleting — no cascade defined on the FK
+  // Clear all FK references — contacts, tickets — before deleting
+  await pool.query(`DELETE FROM contacts WHERE customer_id = $1`, [id]);
   await pool.query(`UPDATE tickets SET customer_id = NULL WHERE customer_id = $1`, [id]);
   await pool.query(`DELETE FROM customers WHERE id = $1`, [id]);
 }

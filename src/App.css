@@ -769,11 +769,11 @@ textarea {
   gap: 8px;
 }
 
-.ticket-detail-body {
-  display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1.6fr) 280px;
-  align-items: start;
+.status-update-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .ticket-messages-panel {

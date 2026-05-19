@@ -434,6 +434,8 @@ function TicketDetailView({ ticket, onBack, onUpdated }: { ticket: Ticket; onBac
 
   return (
     <div className="ticket-detail-page">
+
+      {/* ── Header ── */}
       <div className="ticket-detail-topbar">
         <button className="secondary-button" type="button" onClick={onBack}>← Back to queue</button>
         <div className="ticket-detail-title">
@@ -448,55 +450,55 @@ function TicketDetailView({ ticket, onBack, onUpdated }: { ticket: Ticket; onBac
         </div>
       </div>
 
-      <div className="ticket-detail-body">
-        {/* ── Left: message history ── */}
-        <div className="operations-panel ticket-messages-panel">
-          <h4>Notes &amp; activity</h4>
-          {msgLoading ? (
-            <p className="loading-text">Loading…</p>
-          ) : messages.length === 0 ? (
-            <p style={{ color: "#9aa5b4", fontSize: "0.875rem", marginTop: 8 }}>No notes yet.</p>
-          ) : messages.map((m) => (
-            <div key={m.id} className={`message-item ${m.visibility}`}>
-              <div className="message-meta">
-                <strong>{m.author_name}</strong>
-                <span className={`badge visibility-${m.visibility}`}>{m.visibility === "internal" ? "Internal" : "Customer"}</span>
-                <span className="message-time">{new Date(m.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
-              <p className="message-body">{m.body}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Right: actions ── */}
-        <div className="ticket-detail-actions">
-          <div className="operations-panel">
-            <h4>Update status</h4>
-            <form onSubmit={handleStatusUpdate} style={{ display: "grid", gap: 10, marginTop: 10 }}>
-              {statusError && <div className="form-error">{statusError}</div>}
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-                {TICKET_STATUSES.map((s) => <option key={s}>{s}</option>)}
-              </select>
-              <button className="primary-button" type="submit" disabled={statusSaving || newStatus === ticket.status}>
-                {statusSaving ? "Saving…" : "Update status"}
-              </button>
-            </form>
-          </div>
-
-          <div className="operations-panel">
-            <h4>Add note</h4>
-            <form onSubmit={handleAddNote} style={{ display: "grid", gap: 10, marginTop: 10 }}>
-              {noteError && <div className="form-error">{noteError}</div>}
-              <select value={noteVis} onChange={(e) => setNoteVis(e.target.value as "internal" | "customer")}>
-                <option value="internal">Internal (agents only)</option>
-                <option value="customer">Customer-facing</option>
-              </select>
-              <textarea rows={5} required value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note or update…" style={{ border: "1px solid #c7d3df", borderRadius: 6, padding: "8px 10px", resize: "vertical" }} />
-              <button className="primary-button" type="submit" disabled={noteSaving}>{noteSaving ? "Saving…" : "Add note"}</button>
-            </form>
-          </div>
-        </div>
+      {/* ── Status update — full width inline row ── */}
+      <div className="operations-panel">
+        <form onSubmit={handleStatusUpdate} className="status-update-row">
+          <label style={{ fontWeight: 600, fontSize: "0.875rem", whiteSpace: "nowrap" }}>Update status</label>
+          <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
+            {TICKET_STATUSES.map((s) => <option key={s}>{s}</option>)}
+          </select>
+          <button className="primary-button" type="submit" disabled={statusSaving || newStatus === ticket.status}>
+            {statusSaving ? "Saving…" : "Save"}
+          </button>
+        </form>
+        {statusError && <div className="form-error" style={{ marginTop: 8 }}>{statusError}</div>}
       </div>
+
+      {/* ── Notes & activity — full width ── */}
+      <div className="operations-panel">
+        <h4 style={{ margin: "0 0 12px" }}>Notes &amp; activity</h4>
+        {msgLoading ? (
+          <p className="loading-text">Loading…</p>
+        ) : messages.length === 0 ? (
+          <p style={{ color: "#9aa5b4", fontSize: "0.875rem" }}>No notes yet.</p>
+        ) : messages.map((m) => (
+          <div key={m.id} className={`message-item ${m.visibility}`}>
+            <div className="message-meta">
+              <strong>{m.author_name}</strong>
+              <span className={`badge visibility-${m.visibility}`}>{m.visibility === "internal" ? "Internal" : "Customer"}</span>
+              <span className="message-time">{new Date(m.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+            <p className="message-body">{m.body}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Add note — full width ── */}
+      <div className="operations-panel">
+        <h4 style={{ margin: "0 0 12px" }}>Add note</h4>
+        <form onSubmit={handleAddNote} style={{ display: "grid", gap: 10 }}>
+          {noteError && <div className="form-error">{noteError}</div>}
+          <select value={noteVis} onChange={(e) => setNoteVis(e.target.value as "internal" | "customer")} style={{ maxWidth: 260 }}>
+            <option value="internal">Internal (agents only)</option>
+            <option value="customer">Customer-facing</option>
+          </select>
+          <textarea rows={4} required value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Add a note or update…" style={{ border: "1px solid #c7d3df", borderRadius: 6, padding: "8px 10px", resize: "vertical", font: "inherit" }} />
+          <div>
+            <button className="primary-button" type="submit" disabled={noteSaving}>{noteSaving ? "Saving…" : "Add note"}</button>
+          </div>
+        </form>
+      </div>
+
     </div>
   );
 }
@@ -745,7 +747,7 @@ function KnowledgeSurface() {
       if (editing) {
         await articlesApi.update(editing.id, form);
       } else {
-        await articlesApi.create({ ...form, tags: [] });
+        await articlesApi.create(form);
       }
       setView("list");
       reload();
