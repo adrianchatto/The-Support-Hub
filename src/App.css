@@ -328,6 +328,22 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.ticket-filter-bar {
+  align-items: end;
+  background: #f7f9fc;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(130px, 0.8fr)) auto;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.ticket-filter-bar label {
+  font-size: 0.86rem;
+}
+
 .queue-table {
   display: grid;
   gap: 0;

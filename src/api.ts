@@ -221,7 +221,14 @@ export const customersApi = {
 // ─── Tickets ─────────────────────────────────────────────────────────────────
 
 export const ticketsApi = {
-  list: (params?: { status?: string; priority?: string; ticketType?: string }) => {
+  list: (params?: {
+    assignedAgentId?: string;
+    customerId?: string;
+    priority?: string;
+    search?: string;
+    status?: string;
+    ticketType?: string;
+  }) => {
     const cleaned = Object.fromEntries(
       Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "")
     );

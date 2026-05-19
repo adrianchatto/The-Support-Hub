@@ -39,6 +39,10 @@ export const ticketRoutes: FastifyPluginAsync = async (fastify) => {
       status: query.status as TicketStatus | undefined,
       channel: query.channel as SupportChannel | undefined,
       priority: query.priority as TicketPriority | undefined,
+      ticketType: query.ticketType as TicketType | undefined,
+      search: query.search,
+      customerId: query.customerId,
+      assignedAgentId: query.assignedAgentId,
       limit: query.limit ? parseInt(query.limit, 10) : undefined,
       offset: query.offset ? parseInt(query.offset, 10) : undefined,
     });

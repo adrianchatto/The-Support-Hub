@@ -129,6 +129,24 @@ describe("listTickets", () => {
     expect(tickets).toHaveLength(1);
     expect(tickets[0].channel).toBe("Email");
   });
+
+  it("applies queue filters for search text, ticket type, and priority", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [MOCK_TICKET] });
+
+    await listTickets({
+      search: "portal",
+      ticketType: "incident",
+      priority: "P2",
+    });
+
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toMatch(/ILIKE/);
+    expect(sql).toMatch(/ticket_type =/);
+    expect(sql).toMatch(/priority =/);
+    expect(params).toContain("%portal%");
+    expect(params).toContain("incident");
+    expect(params).toContain("P2");
+  });
 });
 
 describe("updateTicketStatus", () => {

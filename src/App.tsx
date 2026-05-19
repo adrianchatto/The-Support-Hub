@@ -353,6 +353,7 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 
 const BLANK_TICKET = { customerId: "", customerName: "", summary: "", priority: "P3", category: "", ticketType: "incident" as TicketType };
+const BLANK_TICKET_FILTERS = { priority: "", search: "", status: "", ticketType: "" };
 const TICKET_STATUSES = ["New", "Open", "Pending", "Resolved", "Closed"];
 
 function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
@@ -363,10 +364,11 @@ function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [selected, setSelected]   = useState<Ticket | null>(null);
+  const [filters, setFilters]     = useState(BLANK_TICKET_FILTERS);
 
   const reload = useCallback(() => {
-    ticketsApi.list().then(setTickets).catch(console.error);
-  }, []);
+    ticketsApi.list(filters).then(setTickets).catch(console.error);
+  }, [filters]);
 
   useEffect(() => {
     reload();
@@ -479,6 +481,12 @@ function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
             </div>
           </form>
         )}
+
+        <TicketFilterBar
+          filters={filters}
+          onChange={setFilters}
+          onClear={() => setFilters(BLANK_TICKET_FILTERS)}
+        />
 
         <TicketQueueTable tickets={tickets} onSelect={openTicket} />
       </div>
@@ -726,6 +734,57 @@ function TicketDetailView({
       </div>
 
     </div>
+  );
+}
+
+function TicketFilterBar({
+  filters,
+  onChange,
+  onClear,
+}: {
+  filters: typeof BLANK_TICKET_FILTERS;
+  onChange: (filters: typeof BLANK_TICKET_FILTERS) => void;
+  onClear: () => void;
+}) {
+  const hasFilters = Object.values(filters).some(Boolean);
+
+  return (
+    <section aria-label="Ticket queue filters" className="ticket-filter-bar">
+      <label>
+        Search tickets
+        <input
+          value={filters.search}
+          onChange={(e) => onChange({ ...filters, search: e.target.value })}
+          placeholder="Ticket ID, customer, contact, summary, category"
+        />
+      </label>
+      <label>
+        Status
+        <select value={filters.status} onChange={(e) => onChange({ ...filters, status: e.target.value })}>
+          <option value="">All statuses</option>
+          {TICKET_STATUSES.map((status) => <option key={status}>{status}</option>)}
+        </select>
+      </label>
+      <label>
+        Priority
+        <select value={filters.priority} onChange={(e) => onChange({ ...filters, priority: e.target.value })}>
+          <option value="">All priorities</option>
+          {["P1","P2","P3","P4"].map((priority) => <option key={priority}>{priority}</option>)}
+        </select>
+      </label>
+      <label>
+        Type
+        <select value={filters.ticketType} onChange={(e) => onChange({ ...filters, ticketType: e.target.value })}>
+          <option value="">All types</option>
+          <option value="incident">Incident</option>
+          <option value="service_request">Service Request</option>
+          <option value="question">Question</option>
+        </select>
+      </label>
+      <button className="secondary-button" disabled={!hasFilters} onClick={onClear} type="button">
+        Clear filters
+      </button>
+    </section>
   );
 }
 

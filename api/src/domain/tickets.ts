@@ -142,6 +142,8 @@ export type ListTicketsFilter = {
   status?: TicketStatus;
   channel?: SupportChannel;
   priority?: TicketPriority;
+  ticketType?: TicketType;
+  search?: string;
   assignedAgentId?: string;
   customerId?: string;
   limit?: number;
@@ -166,6 +168,10 @@ export async function listTickets(filter: ListTicketsFilter = {}): Promise<Ticke
     conditions.push(`priority = $${idx++}`);
     params.push(filter.priority);
   }
+  if (filter.ticketType) {
+    conditions.push(`ticket_type = $${idx++}`);
+    params.push(filter.ticketType);
+  }
   if (filter.assignedAgentId) {
     conditions.push(`assigned_agent_id = $${idx++}`);
     params.push(filter.assignedAgentId);
@@ -173,6 +179,17 @@ export async function listTickets(filter: ListTicketsFilter = {}): Promise<Ticke
   if (filter.customerId) {
     conditions.push(`customer_id = $${idx++}`);
     params.push(filter.customerId);
+  }
+  if (filter.search) {
+    conditions.push(`(
+      id ILIKE $${idx}
+      OR customer_name ILIKE $${idx}
+      OR COALESCE(contact_name, '') ILIKE $${idx}
+      OR summary ILIKE $${idx}
+      OR COALESCE(category, '') ILIKE $${idx}
+    )`);
+    params.push(`%${filter.search}%`);
+    idx += 1;
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
