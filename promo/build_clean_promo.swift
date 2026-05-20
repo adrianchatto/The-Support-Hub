@@ -118,35 +118,55 @@ func shadow(_ ctx: CGContext, alpha: CGFloat = 0.12, blur: CGFloat = 24, y: CGFl
 func drawIcon(_ ctx: CGContext, center: CGPoint, kind: Int, color: NSColor, progress: Double = 1) {
     ctx.saveGState()
     ctx.setStrokeColor(color.cgColor)
+    ctx.setFillColor(color.cgColor)
     ctx.setLineWidth(5)
     ctx.setLineCap(.round)
     ctx.setLineJoin(.round)
     let p = CGFloat(progress)
     switch kind {
     case 0:
-        let r = CGRect(x: center.x - 34, y: center.y - 26, width: 68 * p, height: 52)
-        ctx.stroke(r)
-        strokeLine(ctx, CGPoint(x: center.x - 18, y: center.y + 2), CGPoint(x: center.x - 4, y: center.y + 16), color, 5)
-        strokeLine(ctx, CGPoint(x: center.x - 4, y: center.y + 16), CGPoint(x: center.x + 24, y: center.y - 12), color, 5)
+        rounded(ctx, CGRect(x: center.x - 42, y: center.y - 34, width: 84 * p, height: 68), 10, fill: color)
+        rounded(ctx, CGRect(x: center.x - 29, y: center.y - 20, width: 58 * p, height: 40), 5, fill: NSColor(hex: "#E8F1FF"))
+        strokeLine(ctx, CGPoint(x: center.x - 22, y: center.y + 8), CGPoint(x: center.x - 4, y: center.y - 10), color, 5)
+        strokeLine(ctx, CGPoint(x: center.x - 4, y: center.y - 10), CGPoint(x: center.x + 22, y: center.y + 16), color, 5)
     case 1:
-        ctx.strokeEllipse(in: CGRect(x: center.x - 26, y: center.y - 34, width: 52 * p, height: 52))
-        strokeLine(ctx, CGPoint(x: center.x, y: center.y + 18), CGPoint(x: center.x, y: center.y + 44 * p), color, 5)
+        ctx.fillEllipse(in: CGRect(x: center.x - 25, y: center.y + 24, width: 50 * p, height: 50))
+        let body = CGPath(roundedRect: CGRect(x: center.x - 58, y: center.y - 58, width: 116 * p, height: 70), cornerWidth: 30, cornerHeight: 30, transform: nil)
+        ctx.addPath(body)
+        ctx.fillPath()
+        let arch = CGMutablePath()
+        arch.move(to: CGPoint(x: center.x - 34, y: center.y - 20))
+        arch.addQuadCurve(to: CGPoint(x: center.x + 34, y: center.y - 20), control: CGPoint(x: center.x, y: center.y - 54))
+        ctx.setStrokeColor(NSColor(hex: "#DFF5EE").cgColor)
+        ctx.setLineWidth(7)
+        ctx.addPath(arch)
+        ctx.strokePath()
     case 2:
-        ctx.stroke(CGRect(x: center.x - 32, y: center.y - 32, width: 64 * p, height: 64))
-        strokeLine(ctx, CGPoint(x: center.x - 18, y: center.y - 6), CGPoint(x: center.x + 18 * p, y: center.y - 6), color, 5)
-        strokeLine(ctx, CGPoint(x: center.x - 18, y: center.y + 14), CGPoint(x: center.x + 10 * p, y: center.y + 14), color, 5)
+        rounded(ctx, CGRect(x: center.x - 40, y: center.y - 48, width: 80 * p, height: 96), 12, fill: color)
+        rounded(ctx, CGRect(x: center.x - 24, y: center.y - 28, width: 48 * p, height: 13), 5, fill: NSColor(hex: "#FFF2D3"))
+        rounded(ctx, CGRect(x: center.x - 24, y: center.y + 0, width: 38 * p, height: 13), 5, fill: NSColor(hex: "#FFF2D3"))
+        rounded(ctx, CGRect(x: center.x - 24, y: center.y + 28, width: 44 * p, height: 13), 5, fill: NSColor(hex: "#FFF2D3"))
     case 3:
-        ctx.strokeEllipse(in: CGRect(x: center.x - 34, y: center.y - 24, width: 68 * p, height: 48))
-        strokeLine(ctx, CGPoint(x: center.x - 10, y: center.y), CGPoint(x: center.x + 10 * p, y: center.y), color, 5)
+        let eye = CGPath(ellipseIn: CGRect(x: center.x - 58, y: center.y - 36, width: 116 * p, height: 72), transform: nil)
+        ctx.addPath(eye)
+        ctx.fillPath()
+        ctx.setFillColor(NSColor(hex: "#F8E3EC").cgColor)
+        ctx.fillEllipse(in: CGRect(x: center.x - 24, y: center.y - 24, width: 48 * p, height: 48))
+        ctx.setFillColor(color.cgColor)
+        ctx.fillEllipse(in: CGRect(x: center.x - 10, y: center.y - 10, width: 20 * p, height: 20))
     default:
         let points = [
-            CGPoint(x: center.x - 34, y: center.y + 24),
-            CGPoint(x: center.x - 14, y: center.y - 8),
-            CGPoint(x: center.x + 6, y: center.y + 8),
-            CGPoint(x: center.x + 34, y: center.y - 28)
+            CGPoint(x: center.x - 48, y: center.y - 38),
+            CGPoint(x: center.x - 16, y: center.y - 6),
+            CGPoint(x: center.x + 10, y: center.y - 22),
+            CGPoint(x: center.x + 52, y: center.y + 40)
         ]
         for i in 0..<(points.count - 1) {
-            strokeLine(ctx, points[i], points[i + 1], color, 5)
+            strokeLine(ctx, points[i], points[i + 1], color, 8)
+        }
+        for point in points {
+            ctx.setFillColor(color.cgColor)
+            ctx.fillEllipse(in: CGRect(x: point.x - 8, y: point.y - 8, width: 16, height: 16))
         }
     }
     ctx.restoreGState()

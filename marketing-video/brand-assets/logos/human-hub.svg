@@ -1,8 +1,8 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Human Hub logo</title>
-  <desc id="desc">Green circle and stem mark for the Human Hub product.</desc>
+  <desc id="desc">Flat green people portal mark for the Human Hub product.</desc>
   <rect width="512" height="512" rx="112" fill="#DFF5EE"/>
-  <path d="M256 92V184" stroke="#00A676" stroke-width="28" stroke-linecap="round"/>
-  <circle cx="256" cy="282" r="98" stroke="#00A676" stroke-width="28"/>
-  <path d="M256 380V430" stroke="#00A676" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="256" cy="178" r="66" fill="#00A676"/>
+  <path d="M128 370C145.027 312.533 194.877 274 256 274C317.123 274 366.973 312.533 384 370C389.298 387.878 375.753 406 357.107 406H154.893C136.247 406 122.702 387.878 128 370Z" fill="#00A676"/>
+  <path d="M188 348C205.499 324.08 229.19 312 256 312C282.81 312 306.501 324.08 324 348" stroke="#DFF5EE" stroke-width="28" stroke-linecap="round"/>
 </svg>

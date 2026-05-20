@@ -1,6 +1,11 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Insight Hub logo</title>
-  <desc id="desc">Indigo signal line mark for the Insight Hub product.</desc>
+  <desc id="desc">Flat indigo upward trend mark for the Insight Hub product.</desc>
   <rect width="512" height="512" rx="112" fill="#ECECFF"/>
-  <path d="M112 154L218 318L306 222L400 360" stroke="#5D5FEF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M126 354H386C400.359 354 412 365.641 412 380C412 394.359 400.359 406 386 406H126C111.641 406 100 394.359 100 380C100 365.641 111.641 354 126 354Z" fill="#D9DAFF"/>
+  <path d="M132 318L214 244L278 288L386 152" stroke="#5D5FEF" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="132" cy="318" r="20" fill="#5D5FEF"/>
+  <circle cx="214" cy="244" r="20" fill="#5D5FEF"/>
+  <circle cx="278" cy="288" r="20" fill="#5D5FEF"/>
+  <circle cx="386" cy="152" r="20" fill="#5D5FEF"/>
 </svg>

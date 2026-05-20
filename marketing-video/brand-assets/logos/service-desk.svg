@@ -1,7 +1,8 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">Service Desk logo</title>
-  <desc id="desc">Blue outline tray mark for the Service Desk product.</desc>
-  <rect width="512" height="512" rx="112" fill="#E8F1FF"/>
-  <rect x="128" y="176" width="256" height="184" rx="14" stroke="#246BFD" stroke-width="28"/>
-  <path d="M162 265L242 194L350 306" stroke="#246BFD" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <title id="title">The Support Hub logo</title>
+  <desc id="desc">Flat blue support tray mark for The Support Hub product.</desc>
+  <rect width="512" height="512" rx="116" fill="#E8F1FF"/>
+  <path d="M128 176C128 158.327 142.327 144 160 144H352C369.673 144 384 158.327 384 176V336C384 353.673 369.673 368 352 368H160C142.327 368 128 353.673 128 336V176Z" fill="#246BFD"/>
+  <path d="M164 190H348V306H301L256 250L211 306H164V190Z" fill="#E8F1FF"/>
+  <path d="M194 280L248 226C252.418 221.582 259.582 221.582 264 226L318 280" stroke="#246BFD" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
