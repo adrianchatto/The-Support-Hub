@@ -125,48 +125,48 @@ func drawIcon(_ ctx: CGContext, center: CGPoint, kind: Int, color: NSColor, prog
     let p = CGFloat(progress)
     switch kind {
     case 0:
-        rounded(ctx, CGRect(x: center.x - 42, y: center.y - 34, width: 84 * p, height: 68), 10, fill: color)
-        rounded(ctx, CGRect(x: center.x - 29, y: center.y - 20, width: 58 * p, height: 40), 5, fill: NSColor(hex: "#E8F1FF"))
-        strokeLine(ctx, CGPoint(x: center.x - 22, y: center.y + 8), CGPoint(x: center.x - 4, y: center.y - 10), color, 5)
-        strokeLine(ctx, CGPoint(x: center.x - 4, y: center.y - 10), CGPoint(x: center.x + 22, y: center.y + 16), color, 5)
+        rounded(ctx, CGRect(x: center.x - 34, y: center.y - 28, width: 68 * p, height: 56), 9, fill: color)
+        rounded(ctx, CGRect(x: center.x - 24, y: center.y - 16, width: 48 * p, height: 32), 5, fill: NSColor(hex: "#E8F1FF"))
+        strokeLine(ctx, CGPoint(x: center.x - 18, y: center.y + 6), CGPoint(x: center.x - 4, y: center.y - 8), color, 5)
+        strokeLine(ctx, CGPoint(x: center.x - 4, y: center.y - 8), CGPoint(x: center.x + 18, y: center.y + 12), color, 5)
     case 1:
-        ctx.fillEllipse(in: CGRect(x: center.x - 25, y: center.y + 24, width: 50 * p, height: 50))
-        let body = CGPath(roundedRect: CGRect(x: center.x - 58, y: center.y - 58, width: 116 * p, height: 70), cornerWidth: 30, cornerHeight: 30, transform: nil)
+        ctx.fillEllipse(in: CGRect(x: center.x - 18, y: center.y + 18, width: 36 * p, height: 36))
+        let body = CGPath(roundedRect: CGRect(x: center.x - 43, y: center.y - 40, width: 86 * p, height: 54), cornerWidth: 24, cornerHeight: 24, transform: nil)
         ctx.addPath(body)
         ctx.fillPath()
         let arch = CGMutablePath()
-        arch.move(to: CGPoint(x: center.x - 34, y: center.y - 20))
-        arch.addQuadCurve(to: CGPoint(x: center.x + 34, y: center.y - 20), control: CGPoint(x: center.x, y: center.y - 54))
+        arch.move(to: CGPoint(x: center.x - 25, y: center.y - 12))
+        arch.addQuadCurve(to: CGPoint(x: center.x + 25, y: center.y - 12), control: CGPoint(x: center.x, y: center.y - 36))
         ctx.setStrokeColor(NSColor(hex: "#DFF5EE").cgColor)
-        ctx.setLineWidth(7)
+        ctx.setLineWidth(6)
         ctx.addPath(arch)
         ctx.strokePath()
     case 2:
-        rounded(ctx, CGRect(x: center.x - 40, y: center.y - 48, width: 80 * p, height: 96), 12, fill: color)
-        rounded(ctx, CGRect(x: center.x - 24, y: center.y - 28, width: 48 * p, height: 13), 5, fill: NSColor(hex: "#FFF2D3"))
-        rounded(ctx, CGRect(x: center.x - 24, y: center.y + 0, width: 38 * p, height: 13), 5, fill: NSColor(hex: "#FFF2D3"))
-        rounded(ctx, CGRect(x: center.x - 24, y: center.y + 28, width: 44 * p, height: 13), 5, fill: NSColor(hex: "#FFF2D3"))
+        rounded(ctx, CGRect(x: center.x - 30, y: center.y - 36, width: 60 * p, height: 72), 10, fill: color)
+        rounded(ctx, CGRect(x: center.x - 18, y: center.y - 21, width: 36 * p, height: 10), 4, fill: NSColor(hex: "#FFF2D3"))
+        rounded(ctx, CGRect(x: center.x - 18, y: center.y + 0, width: 29 * p, height: 10), 4, fill: NSColor(hex: "#FFF2D3"))
+        rounded(ctx, CGRect(x: center.x - 18, y: center.y + 21, width: 34 * p, height: 10), 4, fill: NSColor(hex: "#FFF2D3"))
     case 3:
-        let eye = CGPath(ellipseIn: CGRect(x: center.x - 58, y: center.y - 36, width: 116 * p, height: 72), transform: nil)
+        let eye = CGPath(ellipseIn: CGRect(x: center.x - 42, y: center.y - 26, width: 84 * p, height: 52), transform: nil)
         ctx.addPath(eye)
         ctx.fillPath()
         ctx.setFillColor(NSColor(hex: "#F8E3EC").cgColor)
-        ctx.fillEllipse(in: CGRect(x: center.x - 24, y: center.y - 24, width: 48 * p, height: 48))
+        ctx.fillEllipse(in: CGRect(x: center.x - 18, y: center.y - 18, width: 36 * p, height: 36))
         ctx.setFillColor(color.cgColor)
-        ctx.fillEllipse(in: CGRect(x: center.x - 10, y: center.y - 10, width: 20 * p, height: 20))
+        ctx.fillEllipse(in: CGRect(x: center.x - 8, y: center.y - 8, width: 16 * p, height: 16))
     default:
         let points = [
-            CGPoint(x: center.x - 48, y: center.y - 38),
-            CGPoint(x: center.x - 16, y: center.y - 6),
-            CGPoint(x: center.x + 10, y: center.y - 22),
-            CGPoint(x: center.x + 52, y: center.y + 40)
+            CGPoint(x: center.x - 34, y: center.y - 28),
+            CGPoint(x: center.x - 12, y: center.y - 4),
+            CGPoint(x: center.x + 8, y: center.y - 16),
+            CGPoint(x: center.x + 36, y: center.y + 30)
         ]
         for i in 0..<(points.count - 1) {
-            strokeLine(ctx, points[i], points[i + 1], color, 8)
+            strokeLine(ctx, points[i], points[i + 1], color, 7)
         }
         for point in points {
             ctx.setFillColor(color.cgColor)
-            ctx.fillEllipse(in: CGRect(x: point.x - 8, y: point.y - 8, width: 16, height: 16))
+            ctx.fillEllipse(in: CGRect(x: point.x - 7, y: point.y - 7, width: 14, height: 14))
         }
     }
     ctx.restoreGState()
@@ -203,9 +203,9 @@ func drawScreenshot(_ ctx: CGContext, image: NSImage, rect: CGRect, alpha: Doubl
     ctx.restoreGState()
 }
 
-func drawReportingHub(_ ctx: CGContext, seconds: Double, start: Double, end: Double, title: String, subtitle: String, dark: Bool = false) {
+func drawReportingHub(_ ctx: CGContext, seconds: Double, start: Double, end: Double, title: String, subtitle: String, dark: Bool = false, showCopy: Bool = true, fadeAtEnd: Bool = true) {
     let flow = sceneProgress(seconds, start, start + 2.0)
-    let fadeOut = 1 - sceneProgress(seconds, end - 0.8, end)
+    let fadeOut = fadeAtEnd ? 1 - sceneProgress(seconds, end - 0.8, end) : 1
     let alpha = min(flow, fadeOut)
     if alpha <= 0 { return }
 
@@ -215,8 +215,10 @@ func drawReportingHub(_ ctx: CGContext, seconds: Double, start: Double, end: Dou
 
     ctx.saveGState()
     ctx.setAlpha(CGFloat(alpha))
-    drawText(title, CGRect(x: 0, y: 126, width: CGFloat(width), height: 80), size: 58, weight: .bold, color: titleColor, align: .center)
-    drawText(subtitle, CGRect(x: 230, y: 214, width: CGFloat(width - 460), height: 72), size: 28, color: bodyColor, align: .center)
+    if showCopy {
+        drawText(title, CGRect(x: 0, y: 126, width: CGFloat(width), height: 80), size: 58, weight: .bold, color: titleColor, align: .center)
+        drawText(subtitle, CGRect(x: 230, y: 214, width: CGFloat(width - 460), height: 72), size: 28, color: bodyColor, align: .center)
+    }
 
     let insight = modules[4]
     let center = CGPoint(x: 960, y: 595)
@@ -313,7 +315,9 @@ func drawFrame(_ ctx: CGContext, seconds: Double) {
             end: 34.0,
             title: "Five hubs. One Single Pane of Glass.",
             subtitle: "Everything senior managers need, visible at a single glance.",
-            dark: true
+            dark: true,
+            showCopy: false,
+            fadeAtEnd: false
         )
     }
 }
