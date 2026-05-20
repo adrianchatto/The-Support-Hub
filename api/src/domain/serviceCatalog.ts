@@ -62,6 +62,12 @@ export async function createApplication(input: CreateApplicationInput): Promise<
   const result = await pool.query<Application>(
     `INSERT INTO applications (name, description, owner_user_id, status, criticality)
      VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (name) DO UPDATE
+     SET description   = EXCLUDED.description,
+         owner_user_id = EXCLUDED.owner_user_id,
+         status        = EXCLUDED.status,
+         criticality   = EXCLUDED.criticality,
+         updated_at    = NOW()
      RETURNING *`,
     [
       data.name,
@@ -117,6 +123,10 @@ export async function createTicketCategory(input: CreateTicketCategoryInput): Pr
   const result = await pool.query<TicketCategory>(
     `INSERT INTO ticket_categories (name, description, active)
      VALUES ($1, $2, $3)
+     ON CONFLICT (name) DO UPDATE
+     SET description = EXCLUDED.description,
+         active      = EXCLUDED.active,
+         updated_at  = NOW()
      RETURNING *`,
     [data.name, data.description ?? null, data.active]
   );

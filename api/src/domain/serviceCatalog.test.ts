@@ -52,6 +52,7 @@ describe("service catalog applications", () => {
 
     expect(application.name).toBe("Microsoft 365");
     expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO applications/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/ON CONFLICT \(name\) DO UPDATE/);
   });
 
   it("updates application metadata without deleting history", async () => {
@@ -85,6 +86,7 @@ describe("ticket categories", () => {
 
     expect(category.active).toBe(true);
     expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO ticket_categories/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/ON CONFLICT \(name\) DO UPDATE/);
   });
 
   it("can disable a category without deleting it", async () => {

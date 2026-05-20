@@ -1390,14 +1390,30 @@ function ServiceCatalogSurface() {
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCategory, setEditingCategory] = useState<TicketCategory | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(() => {
-    Promise.all([
-      serviceCatalogApi.applications().then(setApplications),
-      serviceCatalogApi.ticketCategories().then(setCategories),
-      usersApi.list().then(setUsers),
-    ]).catch(console.error);
+  const reload = useCallback(async () => {
+    setLoadingConfig(true);
+    setError(null);
+    await Promise.allSettled([
+      serviceCatalogApi.applications(),
+      serviceCatalogApi.ticketCategories(),
+      usersApi.list(),
+    ])
+      .then(([appsResult, categoriesResult, usersResult]) => {
+        const failures: string[] = [];
+        if (appsResult.status === "fulfilled") setApplications(appsResult.value);
+        else failures.push("applications");
+        if (categoriesResult.status === "fulfilled") setCategories(categoriesResult.value);
+        else failures.push("ticket categories");
+        if (usersResult.status === "fulfilled") setUsers(usersResult.value);
+        else failures.push("owners");
+        if (failures.length > 0) {
+          setError(`Could not load ${failures.join(", ")}. Try refreshing after the deployment finishes.`);
+        }
+      })
+      .finally(() => setLoadingConfig(false));
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -1422,11 +1438,12 @@ function ServiceCatalogSurface() {
 
   async function saveApplication(e: FormEvent) {
     e.preventDefault();
+    if (!appForm.name.trim()) return;
     setSaving(true);
     setError(null);
     try {
       const payload = {
-        name: appForm.name,
+        name: appForm.name.trim(),
         description: appForm.description || undefined,
         ownerUserId: appForm.ownerUserId || undefined,
         status: appForm.status,
@@ -1439,7 +1456,7 @@ function ServiceCatalogSurface() {
       }
       setAppForm(BLANK_APPLICATION);
       setEditingApp(null);
-      reload();
+      await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save application");
     } finally {
@@ -1449,11 +1466,12 @@ function ServiceCatalogSurface() {
 
   async function saveCategory(e: FormEvent) {
     e.preventDefault();
+    if (!categoryForm.name.trim()) return;
     setSaving(true);
     setError(null);
     try {
       const payload = {
-        name: categoryForm.name,
+        name: categoryForm.name.trim(),
         description: categoryForm.description || undefined,
         active: categoryForm.active,
       };
@@ -1464,7 +1482,7 @@ function ServiceCatalogSurface() {
       }
       setCategoryForm(BLANK_CATEGORY);
       setEditingCategory(null);
-      reload();
+      await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save category");
     } finally {
@@ -1473,13 +1491,23 @@ function ServiceCatalogSurface() {
   }
 
   async function disableApplication(app: Application) {
-    await serviceCatalogApi.updateApplication(app.id, { status: "inactive" }).catch(console.error);
-    reload();
+    setError(null);
+    try {
+      await serviceCatalogApi.updateApplication(app.id, { status: "inactive" });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to disable application");
+    }
   }
 
   async function disableCategory(category: TicketCategory) {
-    await serviceCatalogApi.updateTicketCategory(category.id, { active: false }).catch(console.error);
-    reload();
+    setError(null);
+    try {
+      await serviceCatalogApi.updateTicketCategory(category.id, { active: false });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to disable category");
+    }
   }
 
   function ownerName(id: string | null) {
@@ -1489,6 +1517,7 @@ function ServiceCatalogSurface() {
   return (
     <section className="service-config-grid">
       {error && <div className="form-error span-2">{error}</div>}
+      {loadingConfig && <div className="loading-text span-2">Loading service configuration…</div>}
 
       <div className="operations-panel">
         <div className="panel-heading">
@@ -1539,7 +1568,9 @@ function ServiceCatalogSurface() {
         </form>
 
         <div className="config-list">
-          {applications.map((app) => (
+          {applications.length === 0 && !loadingConfig ? (
+            <div className="empty-state">No applications yet. Add the first supported application above.</div>
+          ) : applications.map((app) => (
             <div className="config-row" key={app.id}>
               <div>
                 <strong>{app.name}</strong>
@@ -1585,7 +1616,9 @@ function ServiceCatalogSurface() {
         </form>
 
         <div className="config-list">
-          {categories.map((category) => (
+          {categories.length === 0 && !loadingConfig ? (
+            <div className="empty-state">No ticket categories yet. Add the first category above.</div>
+          ) : categories.map((category) => (
             <div className="config-row" key={category.id}>
               <div>
                 <strong>{category.name}</strong>
