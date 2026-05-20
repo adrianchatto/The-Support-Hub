@@ -19,11 +19,11 @@ try FileManager.default.createDirectory(at: framesDir, withIntermediateDirectori
 
 let colorSpace = CGColorSpaceCreateDeviceRGB()
 let modules: [(name: String, subtitle: String, image: String, accent: NSColor)] = [
-    ("Service Desk", "Resolve every request", "service-desk.png", NSColor(hex: "#246BFD")),
-    ("Human Hub", "Support the team", "human-hub.png", NSColor(hex: "#00A676")),
-    ("Project Hub", "Deliver the work", "project-hub.png", NSColor(hex: "#D99A21")),
-    ("Customer Hub", "Know every account", "customer-hub.png", NSColor(hex: "#C14D7A")),
-    ("Insight Hub", "See what matters", "insight-hub.png", NSColor(hex: "#5D5FEF"))
+    ("The Support Hub", "Empower users to self serve.", "service-desk.png", NSColor(hex: "#246BFD")),
+    ("Human Hub", "HR portal.", "human-hub.png", NSColor(hex: "#00A676")),
+    ("Project Hub", "Manage & track work in progress.", "project-hub.png", NSColor(hex: "#D99A21")),
+    ("Customer Hub", "Real-time insights into customers.", "customer-hub.png", NSColor(hex: "#C14D7A")),
+    ("Insight Hub", "The single pane of glass.", "insight-hub.png", NSColor(hex: "#5D5FEF"))
 ]
 let screenshots = Dictionary(uniqueKeysWithValues: modules.map {
     ($0.image, NSImage(contentsOf: assets.appendingPathComponent($0.image))!)
@@ -89,16 +89,24 @@ func drawText(_ string: String, _ rect: CGRect, size: CGFloat, weight: NSFont.We
 }
 
 func drawBackground(_ ctx: CGContext) {
-    fillRect(ctx, CGRect(x: 0, y: 0, width: width, height: height), NSColor(hex: "#F7F5EF"))
-    ctx.setStrokeColor(NSColor(hex: "#E8E2D6").cgColor)
+    let colors = [
+        NSColor(hex: "#F8FBFF").cgColor,
+        NSColor(hex: "#F3FFF9").cgColor,
+        NSColor(hex: "#FFF7E8").cgColor
+    ] as CFArray
+    let locations: [CGFloat] = [0, 0.52, 1]
+    let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: locations)!
+    ctx.drawLinearGradient(
+        gradient,
+        start: CGPoint(x: 0, y: 0),
+        end: CGPoint(x: CGFloat(width), y: CGFloat(height)),
+        options: []
+    )
+    ctx.setStrokeColor(NSColor(hex: "#FFFFFF").withAlphaComponent(0.55).cgColor)
     ctx.setLineWidth(1)
-    for x in stride(from: 80, through: width, by: 80) {
+    for x in stride(from: 120, through: width, by: 160) {
         ctx.move(to: CGPoint(x: x, y: 0))
         ctx.addLine(to: CGPoint(x: x, y: height))
-    }
-    for y in stride(from: 80, through: height, by: 80) {
-        ctx.move(to: CGPoint(x: 0, y: y))
-        ctx.addLine(to: CGPoint(x: width, y: y))
     }
     ctx.strokePath()
 }
@@ -178,14 +186,14 @@ func drawScreenshot(_ ctx: CGContext, image: NSImage, rect: CGRect, alpha: Doubl
 func drawFrame(_ ctx: CGContext, seconds: Double) {
     drawBackground(ctx)
     drawText("The Hub Suite", CGRect(x: 88, y: 58, width: 360, height: 40), size: 28, weight: .semibold, color: NSColor(hex: "#1E293B"))
-    drawText("Connected products for modern operations", CGRect(x: 1320, y: 60, width: 500, height: 34), size: 22, color: NSColor(hex: "#6B645A"), align: .right)
+    drawText("Five hubs. One Single Pane of Glass.", CGRect(x: 1170, y: 60, width: 650, height: 34), size: 22, color: NSColor(hex: "#53606D"), align: .right)
 
     if seconds < 6.0 {
         let appear = sceneProgress(seconds, 0.0, 1.2)
         ctx.saveGState()
         ctx.setAlpha(CGFloat(appear))
-        drawText("Five hubs. One suite.", CGRect(x: 130, y: 180, width: 900, height: 84), size: 72, weight: .bold)
-        drawText("Support, people, projects, customers and insight, each with a clear place to live.", CGRect(x: 134, y: 280, width: 900, height: 42), size: 28, color: NSColor(hex: "#5F584F"))
+        drawText("Five hubs. One Single Pane of Glass.", CGRect(x: 130, y: 170, width: 1200, height: 90), size: 68, weight: .bold)
+        drawText("Each hub is a pillar, with centralised reporting and oversight through Insight Hub.", CGRect(x: 134, y: 280, width: 1120, height: 42), size: 28, color: NSColor(hex: "#53606D"))
         ctx.restoreGState()
 
         let startX: CGFloat = 285
@@ -197,7 +205,7 @@ func drawFrame(_ ctx: CGContext, seconds: Double) {
             let x = startX + CGFloat(i) * 335
             rounded(ctx, CGRect(x: x - 72, y: y - 72, width: 144, height: 144), 32, fill: withAlpha(module.accent, 0.12), stroke: withAlpha(module.accent, 0.32), line: 1.5)
             drawIcon(ctx, center: CGPoint(x: x, y: y), kind: i, color: module.accent, progress: p)
-            drawText(module.name, CGRect(x: x - 120, y: y + 102, width: 240, height: 34), size: 25, weight: .semibold, align: .center)
+            drawText(module.name.replacingOccurrences(of: "The ", with: ""), CGRect(x: x - 135, y: y + 102, width: 270, height: 64), size: 24, weight: .semibold, align: .center)
             ctx.restoreGState()
         }
     } else if seconds < 18.0 {
@@ -214,8 +222,8 @@ func drawFrame(_ ctx: CGContext, seconds: Double) {
         ctx.setAlpha(CGFloat(visible))
         rounded(ctx, CGRect(x: 130, y: 188, width: 112, height: 112), 28, fill: withAlpha(module.accent, 0.12), stroke: withAlpha(module.accent, 0.28), line: 1.5)
         drawIcon(ctx, center: CGPoint(x: 186, y: 244), kind: index, color: module.accent, progress: inT)
-        drawText(module.name, CGRect(x: 130, y: 340, width: 520, height: 70), size: 58, weight: .bold)
-        drawText(module.subtitle, CGRect(x: 134, y: 424, width: 560, height: 40), size: 28, color: NSColor(hex: "#625B51"))
+        drawText(module.name, CGRect(x: 130, y: 330, width: 560, height: 78), size: 54, weight: .bold)
+        drawText(module.subtitle, CGRect(x: 134, y: 422, width: 600, height: 70), size: 28, color: NSColor(hex: "#53606D"))
         rounded(ctx, CGRect(x: 132, y: 512, width: 320, height: 6), 3, fill: withAlpha(module.accent, 0.18))
         rounded(ctx, CGRect(x: 132, y: 512, width: 320 * CGFloat(sceneProgress(localSeconds, 0.3, 1.8)), height: 6), 3, fill: module.accent)
 
@@ -225,23 +233,45 @@ func drawFrame(_ ctx: CGContext, seconds: Double) {
         ctx.restoreGState()
     } else if seconds < 23.0 {
         let flow = sceneProgress(seconds, 18.0, 20.0)
-        drawText("Each hub keeps its own identity.", CGRect(x: 0, y: 210, width: CGFloat(width), height: 72), size: 58, weight: .bold, align: .center)
-        drawText("Clean marks, distinct colours, no central company badge.", CGRect(x: 0, y: 294, width: CGFloat(width), height: 42), size: 28, color: NSColor(hex: "#625B51"), align: .center)
-        let y: CGFloat = 585
-        let xs: [CGFloat] = [300, 630, 960, 1290, 1620]
-        for i in 0..<modules.count {
-            let module = modules[i]
-            let appear = clamp(flow * 1.5 - Double(i) * 0.12)
-            if i < modules.count - 1 {
-                let lineT = clamp(flow * 1.25 - Double(i) * 0.12)
-                strokeLine(ctx, CGPoint(x: xs[i] + 94, y: y), CGPoint(x: lerp(xs[i] + 94, xs[i + 1] - 94, lineT), y: y), NSColor(hex: "#C8C3B8"), 5)
-            }
+        drawText("Centralised reporting and oversight.", CGRect(x: 0, y: 140, width: CGFloat(width), height: 72), size: 58, weight: .bold, align: .center)
+        drawText("Insight Hub brings the pillars together, so senior managers see what they need at a single glance.", CGRect(x: 0, y: 224, width: CGFloat(width), height: 42), size: 28, color: NSColor(hex: "#53606D"), align: .center)
+
+        let insight = modules[4]
+        let center = CGPoint(x: 960, y: 590)
+        let satellites: [(index: Int, point: CGPoint)] = [
+            (0, CGPoint(x: 430, y: 460)),
+            (1, CGPoint(x: 645, y: 740)),
+            (2, CGPoint(x: 1275, y: 740)),
+            (3, CGPoint(x: 1490, y: 460))
+        ]
+
+        for (order, item) in satellites.enumerated() {
+            let lineT = clamp(flow * 1.25 - Double(order) * 0.12)
+            let from = item.point
+            strokeLine(ctx, from, CGPoint(x: lerp(from.x, center.x, lineT), y: lerp(from.y, center.y, lineT)), withAlpha(modules[item.index].accent, 0.55), 5)
+        }
+
+        ctx.saveGState()
+        ctx.setAlpha(CGFloat(flow))
+        shadow(ctx, alpha: 0.12, blur: 26, y: 12)
+        rounded(ctx, CGRect(x: center.x - 138, y: center.y - 138, width: 276, height: 276), 52, fill: .white, stroke: withAlpha(insight.accent, 0.42), line: 2)
+        ctx.setShadow(offset: .zero, blur: 0)
+        rounded(ctx, CGRect(x: center.x - 72, y: center.y - 72, width: 144, height: 144), 34, fill: withAlpha(insight.accent, 0.14))
+        drawIcon(ctx, center: center, kind: 4, color: insight.accent, progress: flow)
+        drawText("Insight\nHub", CGRect(x: center.x - 100, y: center.y + 88, width: 200, height: 72), size: 28, weight: .bold, align: .center)
+        ctx.restoreGState()
+
+        for (order, item) in satellites.enumerated() {
+            let module = modules[item.index]
+            let appear = clamp(flow * 1.5 - Double(order) * 0.12)
+            let x = item.point.x
+            let y = item.point.y
             ctx.saveGState()
             ctx.setAlpha(CGFloat(appear))
-            rounded(ctx, CGRect(x: xs[i] - 86, y: y - 86, width: 172, height: 172), 36, fill: .white, stroke: NSColor(hex: "#DDD8CE"), line: 1.5)
-            rounded(ctx, CGRect(x: xs[i] - 54, y: y - 54, width: 108, height: 108), 26, fill: withAlpha(module.accent, 0.12))
-            drawIcon(ctx, center: CGPoint(x: xs[i], y: y), kind: i, color: module.accent, progress: appear)
-            drawText(module.name.replacingOccurrences(of: " ", with: "\n"), CGRect(x: xs[i] - 110, y: y + 112, width: 220, height: 66), size: 23, weight: .semibold, align: .center)
+            rounded(ctx, CGRect(x: x - 86, y: y - 86, width: 172, height: 172), 36, fill: .white, stroke: NSColor(hex: "#DDD8CE"), line: 1.5)
+            rounded(ctx, CGRect(x: x - 54, y: y - 54, width: 108, height: 108), 26, fill: withAlpha(module.accent, 0.12))
+            drawIcon(ctx, center: CGPoint(x: x, y: y), kind: item.index, color: module.accent, progress: appear)
+            drawText(module.name.replacingOccurrences(of: "The ", with: "").replacingOccurrences(of: " ", with: "\n"), CGRect(x: x - 118, y: y + 102, width: 236, height: 72), size: 23, weight: .semibold, align: .center)
             ctx.restoreGState()
         }
     } else {
@@ -249,8 +279,8 @@ func drawFrame(_ ctx: CGContext, seconds: Double) {
         fillRect(ctx, CGRect(x: 0, y: 0, width: width, height: height), withAlpha(NSColor(hex: "#111827"), CGFloat(end)))
         ctx.saveGState()
         ctx.setAlpha(CGFloat(end))
-        drawText("The Hub Suite", CGRect(x: 0, y: 352, width: CGFloat(width), height: 96), size: 82, weight: .bold, color: .white, align: .center)
-        drawText("Support, people, projects, customers and insight.", CGRect(x: 0, y: 468, width: CGFloat(width), height: 48), size: 34, color: NSColor(hex: "#D7DBE3"), align: .center)
+        drawText("Five hubs. One Single Pane of Glass.", CGRect(x: 0, y: 342, width: CGFloat(width), height: 96), size: 74, weight: .bold, color: .white, align: .center)
+        drawText("Everything senior managers need, visible at a single glance.", CGRect(x: 0, y: 462, width: CGFloat(width), height: 48), size: 34, color: NSColor(hex: "#D7DBE3"), align: .center)
         let startX: CGFloat = 650
         for (i, module) in modules.enumerated() {
             rounded(ctx, CGRect(x: startX + CGFloat(i) * 132, y: 600, width: 92, height: 92), 24, fill: withAlpha(module.accent, 0.18), stroke: withAlpha(module.accent, 0.5))
