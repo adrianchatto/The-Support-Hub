@@ -1389,6 +1389,8 @@ function ServiceCatalogSurface() {
   const [categoryForm, setCategoryForm] = useState(BLANK_CATEGORY);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCategory, setEditingCategory] = useState<TicketCategory | null>(null);
+  const [showInactiveApps, setShowInactiveApps] = useState(false);
+  const [showInactiveCategories, setShowInactiveCategories] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1493,7 +1495,7 @@ function ServiceCatalogSurface() {
   async function disableApplication(app: Application) {
     setError(null);
     try {
-      await serviceCatalogApi.updateApplication(app.id, { status: "inactive" });
+      await serviceCatalogApi.deleteApplication(app.id);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to disable application");
@@ -1503,7 +1505,7 @@ function ServiceCatalogSurface() {
   async function disableCategory(category: TicketCategory) {
     setError(null);
     try {
-      await serviceCatalogApi.updateTicketCategory(category.id, { active: false });
+      await serviceCatalogApi.deleteTicketCategory(category.id);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to disable category");
@@ -1513,6 +1515,11 @@ function ServiceCatalogSurface() {
   function ownerName(id: string | null) {
     return users.find((u) => u.id === id)?.name ?? "Unassigned";
   }
+
+  const visibleApplications = showInactiveApps ? applications : applications.filter((app) => app.status === "active");
+  const visibleCategories = showInactiveCategories ? categories : categories.filter((category) => category.active);
+  const inactiveApplicationCount = applications.filter((app) => app.status === "inactive").length;
+  const inactiveCategoryCount = categories.filter((category) => !category.active).length;
 
   return (
     <section className="service-config-grid">
@@ -1525,6 +1532,10 @@ function ServiceCatalogSurface() {
             <p className="eyebrow">Portfolio</p>
             <h3>Application portfolio</h3>
           </div>
+          <label className="inline-toggle">
+            <input type="checkbox" checked={showInactiveApps} onChange={(e) => setShowInactiveApps(e.target.checked)} />
+            Show inactive ({inactiveApplicationCount})
+          </label>
         </div>
 
         <form className="ticket-form service-config-form" onSubmit={saveApplication}>
@@ -1568,9 +1579,9 @@ function ServiceCatalogSurface() {
         </form>
 
         <div className="config-list">
-          {applications.length === 0 && !loadingConfig ? (
-            <div className="empty-state">No applications yet. Add the first supported application above.</div>
-          ) : applications.map((app) => (
+          {visibleApplications.length === 0 && !loadingConfig ? (
+            <div className="empty-state">{applications.length === 0 ? "No applications yet. Add the first supported application above." : "No active applications. Show inactive to review archived applications."}</div>
+          ) : visibleApplications.map((app) => (
             <div className="config-row" key={app.id}>
               <div>
                 <strong>{app.name}</strong>
@@ -1578,7 +1589,9 @@ function ServiceCatalogSurface() {
               </div>
               <div className="customer-actions">
                 <button className="icon-button" type="button" onClick={() => editApplication(app)} aria-label={`Edit ${app.name}`} title="Edit application"><Pencil size={15} /></button>
-                <button className="icon-button danger" type="button" onClick={() => disableApplication(app)} aria-label={`Disable ${app.name}`} title="Disable application"><X size={15} /></button>
+                {app.status === "active" && (
+                  <button className="icon-button danger" type="button" onClick={() => disableApplication(app)} aria-label={`Archive ${app.name}`} title="Archive application"><X size={15} /></button>
+                )}
               </div>
             </div>
           ))}
@@ -1591,6 +1604,10 @@ function ServiceCatalogSurface() {
             <p className="eyebrow">Ticketing</p>
             <h3>Ticket categories</h3>
           </div>
+          <label className="inline-toggle">
+            <input type="checkbox" checked={showInactiveCategories} onChange={(e) => setShowInactiveCategories(e.target.checked)} />
+            Show inactive ({inactiveCategoryCount})
+          </label>
         </div>
 
         <form className="ticket-form service-config-form" onSubmit={saveCategory}>
@@ -1616,9 +1633,9 @@ function ServiceCatalogSurface() {
         </form>
 
         <div className="config-list">
-          {categories.length === 0 && !loadingConfig ? (
-            <div className="empty-state">No ticket categories yet. Add the first category above.</div>
-          ) : categories.map((category) => (
+          {visibleCategories.length === 0 && !loadingConfig ? (
+            <div className="empty-state">{categories.length === 0 ? "No ticket categories yet. Add the first category above." : "No active ticket categories. Show inactive to review archived categories."}</div>
+          ) : visibleCategories.map((category) => (
             <div className="config-row" key={category.id}>
               <div>
                 <strong>{category.name}</strong>
@@ -1626,7 +1643,9 @@ function ServiceCatalogSurface() {
               </div>
               <div className="customer-actions">
                 <button className="icon-button" type="button" onClick={() => editCategory(category)} aria-label={`Edit ${category.name}`} title="Edit category"><Pencil size={15} /></button>
-                <button className="icon-button danger" type="button" onClick={() => disableCategory(category)} aria-label={`Disable ${category.name}`} title="Disable category"><X size={15} /></button>
+                {category.active && (
+                  <button className="icon-button danger" type="button" onClick={() => disableCategory(category)} aria-label={`Archive ${category.name}`} title="Archive category"><X size={15} /></button>
+                )}
               </div>
             </div>
           ))}

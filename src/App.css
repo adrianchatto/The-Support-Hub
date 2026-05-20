@@ -409,6 +409,20 @@ button:disabled {
   margin: 0;
 }
 
+.inline-toggle {
+  align-items: center;
+  color: var(--color-muted);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.inline-toggle input {
+  accent-color: var(--color-brand);
+}
+
 .ticket-form {
   background: var(--color-panel-muted);
   border: 1px solid var(--color-border);
