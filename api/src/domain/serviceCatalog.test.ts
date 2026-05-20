@@ -39,6 +39,14 @@ describe("service catalog applications", () => {
     expect(mockQuery.mock.calls[0][0]).toMatch(/ORDER BY status ASC, name ASC/);
   });
 
+  it("returns an empty application list if migration has not created the table yet", async () => {
+    mockQuery.mockRejectedValueOnce({ code: "42P01" });
+
+    const applications = await listApplications();
+
+    expect(applications).toEqual([]);
+  });
+
   it("creates an application owned by a supervisor", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [APPLICATION] });
 
@@ -73,6 +81,14 @@ describe("ticket categories", () => {
 
     expect(categories).toEqual([CATEGORY]);
     expect(mockQuery.mock.calls[0][0]).toMatch(/ORDER BY active DESC, name ASC/);
+  });
+
+  it("returns an empty category list if migration has not created the table yet", async () => {
+    mockQuery.mockRejectedValueOnce({ code: "42P01" });
+
+    const categories = await listTicketCategories();
+
+    expect(categories).toEqual([]);
   });
 
   it("creates a reusable ticket category", async () => {

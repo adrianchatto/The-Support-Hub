@@ -47,7 +47,7 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    command: ["node", "-e", "import('./dist/db/migrate.js')"]
+    command: ["node", "-e", "import('./dist/db/migrate.js').then((m) => m.migrate())"]
     environment:
       DATABASE_URL: ${DATABASE_URL}
     depends_on:

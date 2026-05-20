@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DatabaseError } from "pg";
 import { getPool } from "../db/client.js";
 
 export type ApplicationStatus = "active" | "inactive";
@@ -47,12 +48,24 @@ export type UpdateApplicationInput = z.input<typeof UpdateApplicationSchema>;
 export type CreateTicketCategoryInput = z.input<typeof TicketCategorySchema>;
 export type UpdateTicketCategoryInput = z.input<typeof UpdateTicketCategorySchema>;
 
+function isMissingCatalogTableError(error: unknown): error is DatabaseError {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && (error as { code?: string }).code === "42P01";
+}
+
 export async function listApplications(): Promise<Application[]> {
   const pool = getPool();
-  const result = await pool.query<Application>(
-    `SELECT * FROM applications ORDER BY status ASC, name ASC`
-  );
-  return result.rows;
+  try {
+    const result = await pool.query<Application>(
+      `SELECT * FROM applications ORDER BY status ASC, name ASC`
+    );
+    return result.rows;
+  } catch (error) {
+    if (isMissingCatalogTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function createApplication(input: CreateApplicationInput): Promise<Application> {
@@ -110,10 +123,15 @@ export async function deleteApplication(id: string): Promise<void> {
 
 export async function listTicketCategories(): Promise<TicketCategory[]> {
   const pool = getPool();
-  const result = await pool.query<TicketCategory>(
-    `SELECT * FROM ticket_categories ORDER BY active DESC, name ASC`
-  );
-  return result.rows;
+  try {
+    const result = await pool.query<TicketCategory>(
+      `SELECT * FROM ticket_categories ORDER BY active DESC, name ASC`
+    );
+    return result.rows;
+  } catch (error) {
+    if (isMissingCatalogTableError(error)) return [];
+    throw error;
+  }
 }
 
 export async function createTicketCategory(input: CreateTicketCategoryInput): Promise<TicketCategory> {
