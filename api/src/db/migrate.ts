@@ -1,12 +1,17 @@
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { hash } from "bcryptjs";
 import { getPool, closePool } from "./client.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-async function migrate(): Promise<void> {
+type MigrationOptions = {
+  closePoolWhenDone?: boolean;
+};
+
+export async function migrate(options: MigrationOptions = {}): Promise<void> {
+  const { closePoolWhenDone = true } = options;
   const pool = getPool();
   const sql = readFileSync(join(__dirname, "schema.sql"), "utf8");
 
@@ -38,11 +43,19 @@ async function migrate(): Promise<void> {
 
     console.log("✓ Migration complete");
   } finally {
-    await closePool();
+    if (closePoolWhenDone) {
+      await closePool();
+    }
   }
 }
 
-migrate().catch((err) => {
-  console.error("Migration failed:", err);
-  process.exit(1);
-});
+const isCliRun = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+
+if (isCliRun) {
+  migrate().catch((err) => {
+    console.error("Migration failed:", err);
+    process.exit(1);
+  });
+}
