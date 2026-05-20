@@ -1,0 +1,38 @@
+{
+  "serviceDesk": {
+    "name": "Service Desk",
+    "primary": "#246BFD",
+    "tint": "#E8F1FF",
+    "text": "#111827"
+  },
+  "humanHub": {
+    "name": "Human Hub",
+    "primary": "#00A676",
+    "tint": "#DFF5EE",
+    "text": "#111827"
+  },
+  "projectHub": {
+    "name": "Project Hub",
+    "primary": "#D99A21",
+    "tint": "#FFF2D3",
+    "text": "#111827"
+  },
+  "customerHub": {
+    "name": "Customer Hub",
+    "primary": "#C14D7A",
+    "tint": "#F8E3EC",
+    "text": "#111827"
+  },
+  "insightHub": {
+    "name": "Insight Hub",
+    "primary": "#5D5FEF",
+    "tint": "#ECECFF",
+    "text": "#111827"
+  },
+  "neutral": {
+    "canvas": "#F7F5EF",
+    "grid": "#E8E2D6",
+    "border": "#DDD8CE",
+    "mutedText": "#6B645A"
+  }
+}
