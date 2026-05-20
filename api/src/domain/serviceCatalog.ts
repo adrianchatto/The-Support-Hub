@@ -55,8 +55,75 @@ function isMissingCatalogTableError(error: unknown): error is DatabaseError {
     && (error as { code?: string }).code === "42P01";
 }
 
+async function ensureServiceCatalogSchema(): Promise<void> {
+  const pool = getPool();
+  await pool.query(`
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+    CREATE TABLE IF NOT EXISTS applications (
+      id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name          TEXT NOT NULL UNIQUE,
+      description   TEXT,
+      owner_user_id UUID,
+      status        TEXT NOT NULL DEFAULT 'active',
+      criticality   TEXT NOT NULL DEFAULT 'medium',
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS owner_user_id UUID;
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS criticality TEXT NOT NULL DEFAULT 'medium';
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+    CREATE TABLE IF NOT EXISTS ticket_categories (
+      id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name        TEXT NOT NULL UNIQUE,
+      description TEXT,
+      active      BOOLEAN NOT NULL DEFAULT true,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    ALTER TABLE ticket_categories ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE ticket_categories ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+    ALTER TABLE ticket_categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    ALTER TABLE ticket_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_name_unique ON applications(name);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_name_unique ON ticket_categories(name);
+  `);
+}
+
+async function seedDefaultServiceCatalog(): Promise<void> {
+  const pool = getPool();
+  await pool.query(`
+    INSERT INTO applications (name, description, status, criticality)
+    VALUES
+      ('Microsoft 365', 'Email, Teams, SharePoint and OneDrive support.', 'active', 'high'),
+      ('Customer Portal', 'External customer self-service and account access.', 'active', 'critical'),
+      ('CRM', 'Customer relationship management and account records.', 'active', 'high'),
+      ('Finance System', 'Billing, invoicing and payment operations.', 'active', 'medium'),
+      ('Endpoint Devices', 'Laptops, mobile devices and desktop tooling.', 'active', 'medium')
+    ON CONFLICT (name) DO NOTHING;
+  `);
+  await pool.query(`
+    INSERT INTO ticket_categories (name, description, active)
+    VALUES
+      ('Access', 'Login, permissions, password and account access work.', true),
+      ('Incident', 'Faults, outages, break-fix and service degradation.', true),
+      ('How-to Question', 'Usage guidance and process questions.', true),
+      ('Data Issue', 'Incorrect, duplicate, missing or stale business data.', true),
+      ('Service Request', 'Standard fulfilment requests and low-risk changes.', true),
+      ('Integration', 'API, sync, import/export and connected system issues.', true)
+    ON CONFLICT (name) DO NOTHING;
+  `);
+}
+
 export async function listApplications(): Promise<Application[]> {
   const pool = getPool();
+  await ensureServiceCatalogSchema();
+  await seedDefaultServiceCatalog();
   try {
     const result = await pool.query<Application>(
       `SELECT * FROM applications ORDER BY status ASC, name ASC`
@@ -71,6 +138,7 @@ export async function listApplications(): Promise<Application[]> {
 export async function createApplication(input: CreateApplicationInput): Promise<Application> {
   const data = ApplicationSchema.parse(input);
   const pool = getPool();
+  await ensureServiceCatalogSchema();
 
   const result = await pool.query<Application>(
     `INSERT INTO applications (name, description, owner_user_id, status, criticality)
@@ -97,6 +165,7 @@ export async function createApplication(input: CreateApplicationInput): Promise<
 export async function updateApplication(id: string, input: UpdateApplicationInput): Promise<Application> {
   const data = UpdateApplicationSchema.parse(input);
   const pool = getPool();
+  await ensureServiceCatalogSchema();
   const sets: string[] = ["updated_at = NOW()"];
   const params: unknown[] = [id];
   let idx = 2;
@@ -118,11 +187,14 @@ export async function updateApplication(id: string, input: UpdateApplicationInpu
 
 export async function deleteApplication(id: string): Promise<void> {
   const pool = getPool();
+  await ensureServiceCatalogSchema();
   await pool.query(`UPDATE applications SET status = 'inactive', updated_at = NOW() WHERE id = $1`, [id]);
 }
 
 export async function listTicketCategories(): Promise<TicketCategory[]> {
   const pool = getPool();
+  await ensureServiceCatalogSchema();
+  await seedDefaultServiceCatalog();
   try {
     const result = await pool.query<TicketCategory>(
       `SELECT * FROM ticket_categories ORDER BY active DESC, name ASC`
@@ -137,6 +209,7 @@ export async function listTicketCategories(): Promise<TicketCategory[]> {
 export async function createTicketCategory(input: CreateTicketCategoryInput): Promise<TicketCategory> {
   const data = TicketCategorySchema.parse(input);
   const pool = getPool();
+  await ensureServiceCatalogSchema();
 
   const result = await pool.query<TicketCategory>(
     `INSERT INTO ticket_categories (name, description, active)
@@ -155,6 +228,7 @@ export async function createTicketCategory(input: CreateTicketCategoryInput): Pr
 export async function updateTicketCategory(id: string, input: UpdateTicketCategoryInput): Promise<TicketCategory> {
   const data = UpdateTicketCategorySchema.parse(input);
   const pool = getPool();
+  await ensureServiceCatalogSchema();
   const sets: string[] = ["updated_at = NOW()"];
   const params: unknown[] = [id];
   let idx = 2;
@@ -174,5 +248,6 @@ export async function updateTicketCategory(id: string, input: UpdateTicketCatego
 
 export async function deleteTicketCategory(id: string): Promise<void> {
   const pool = getPool();
+  await ensureServiceCatalogSchema();
   await pool.query(`UPDATE ticket_categories SET active = false, updated_at = NOW() WHERE id = $1`, [id]);
 }

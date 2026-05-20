@@ -31,16 +31,27 @@ const CATEGORY = {
 
 describe("service catalog applications", () => {
   it("lists active applications first by name", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [APPLICATION] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [APPLICATION] });
 
     const applications = await listApplications();
 
     expect(applications).toEqual([APPLICATION]);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/ORDER BY status ASC, name ASC/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/CREATE TABLE IF NOT EXISTS applications/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/CREATE TABLE IF NOT EXISTS ticket_categories/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO applications/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/ORDER BY status ASC, name ASC/);
   });
 
-  it("returns an empty application list if migration has not created the table yet", async () => {
-    mockQuery.mockRejectedValueOnce({ code: "42P01" });
+  it("returns an empty application list when the self-healed table has no rows", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const applications = await listApplications();
 
@@ -48,7 +59,9 @@ describe("service catalog applications", () => {
   });
 
   it("creates an application owned by a supervisor", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [APPLICATION] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [APPLICATION] });
 
     const application = await createApplication({
       name: "Microsoft 365",
@@ -59,32 +72,45 @@ describe("service catalog applications", () => {
     });
 
     expect(application.name).toBe("Microsoft 365");
-    expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO applications/);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/ON CONFLICT \(name\) DO UPDATE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/CREATE TABLE IF NOT EXISTS applications/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO applications/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/ON CONFLICT \(name\) DO UPDATE/);
   });
 
   it("updates application metadata without deleting history", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ ...APPLICATION, criticality: "critical" }] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ ...APPLICATION, criticality: "critical" }] });
 
     const application = await updateApplication("app-1", { criticality: "critical" });
 
     expect(application.criticality).toBe("critical");
-    expect(mockQuery.mock.calls[0][0]).toMatch(/updated_at = NOW\(\)/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/updated_at = NOW\(\)/);
   });
 });
 
 describe("ticket categories", () => {
   it("lists ticket categories by active state and name", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [CATEGORY] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [CATEGORY] });
 
     const categories = await listTicketCategories();
 
     expect(categories).toEqual([CATEGORY]);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/ORDER BY active DESC, name ASC/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/CREATE TABLE IF NOT EXISTS ticket_categories/);
+    expect(mockQuery.mock.calls[2][0]).toMatch(/INSERT INTO ticket_categories/);
+    expect(mockQuery.mock.calls[3][0]).toMatch(/ORDER BY active DESC, name ASC/);
   });
 
-  it("returns an empty category list if migration has not created the table yet", async () => {
-    mockQuery.mockRejectedValueOnce({ code: "42P01" });
+  it("returns an empty category list when the self-healed table has no rows", async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     const categories = await listTicketCategories();
 
@@ -92,7 +118,9 @@ describe("ticket categories", () => {
   });
 
   it("creates a reusable ticket category", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [CATEGORY] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [CATEGORY] });
 
     const category = await createTicketCategory({
       name: "Access",
@@ -101,12 +129,15 @@ describe("ticket categories", () => {
     });
 
     expect(category.active).toBe(true);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/INSERT INTO ticket_categories/);
-    expect(mockQuery.mock.calls[0][0]).toMatch(/ON CONFLICT \(name\) DO UPDATE/);
+    expect(mockQuery.mock.calls[0][0]).toMatch(/CREATE TABLE IF NOT EXISTS ticket_categories/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/INSERT INTO ticket_categories/);
+    expect(mockQuery.mock.calls[1][0]).toMatch(/ON CONFLICT \(name\) DO UPDATE/);
   });
 
   it("can disable a category without deleting it", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ ...CATEGORY, active: false }] });
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ ...CATEGORY, active: false }] });
 
     const category = await updateTicketCategory("cat-1", { active: false });
 
