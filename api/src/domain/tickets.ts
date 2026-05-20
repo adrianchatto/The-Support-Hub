@@ -26,6 +26,10 @@ export type Ticket = {
   status: TicketStatus;
   ticket_type: TicketType;
   category: string | null;
+  application_id: string | null;
+  application_name: string | null;
+  category_id: string | null;
+  category_name: string | null;
   assigned_team_id: string | null;
   assigned_agent_id: string | null;
   problem_id: string | null;
@@ -55,6 +59,8 @@ const CreateTicketSchema = z.object({
   priority: z.enum(PRIORITIES, { errorMap: () => ({ message: "Invalid priority" }) }),
   ticketType: z.enum(TICKET_TYPES).optional().default("incident"),
   category: z.string().optional(),
+  applicationId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().optional(),
   sourceRef: z.string().optional(),
   customerId: z.string().uuid().optional(),
   contactId: z.string().uuid().optional(),
@@ -90,10 +96,10 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const ticketResult = await pool.query<Ticket>(
     `INSERT INTO tickets (
        id, customer_name, contact_name, summary, description,
-       channel, priority, status, ticket_type, category, source_ref,
+       channel, priority, status, ticket_type, category, application_id, category_id, source_ref,
        customer_id, contact_id
      )
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'New',$8,$9,$10,$11,$12)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,'New',$8,$9,$10,$11,$12,$13,$14)
      RETURNING *`,
     [
       ticketId,
@@ -105,6 +111,8 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
       data.priority,
       data.ticketType,
       data.category ?? null,
+      data.applicationId ?? null,
+      data.categoryId ?? null,
       data.sourceRef ?? null,
       data.customerId ?? null,
       data.contactId ?? null,
@@ -132,7 +140,11 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
 export async function getTicket(id: string): Promise<Ticket | null> {
   const pool = getPool();
   const result = await pool.query<Ticket>(
-    `SELECT * FROM tickets WHERE id = $1`,
+    `SELECT t.*, a.name AS application_name, tc.name AS category_name
+     FROM tickets t
+     LEFT JOIN applications a ON a.id = t.application_id
+     LEFT JOIN ticket_categories tc ON tc.id = t.category_id
+     WHERE t.id = $1`,
     [id]
   );
   return result.rows[0] ?? null;
@@ -144,6 +156,8 @@ export type ListTicketsFilter = {
   priority?: TicketPriority;
   assignedAgentId?: string;
   customerId?: string;
+  applicationId?: string;
+  categoryId?: string;
   limit?: number;
   offset?: number;
 };
@@ -155,24 +169,32 @@ export async function listTickets(filter: ListTicketsFilter = {}): Promise<Ticke
   let idx = 1;
 
   if (filter.status) {
-    conditions.push(`status = $${idx++}`);
+    conditions.push(`t.status = $${idx++}`);
     params.push(filter.status);
   }
   if (filter.channel) {
-    conditions.push(`channel = $${idx++}`);
+    conditions.push(`t.channel = $${idx++}`);
     params.push(filter.channel);
   }
   if (filter.priority) {
-    conditions.push(`priority = $${idx++}`);
+    conditions.push(`t.priority = $${idx++}`);
     params.push(filter.priority);
   }
   if (filter.assignedAgentId) {
-    conditions.push(`assigned_agent_id = $${idx++}`);
+    conditions.push(`t.assigned_agent_id = $${idx++}`);
     params.push(filter.assignedAgentId);
   }
   if (filter.customerId) {
-    conditions.push(`customer_id = $${idx++}`);
+    conditions.push(`t.customer_id = $${idx++}`);
     params.push(filter.customerId);
+  }
+  if (filter.applicationId) {
+    conditions.push(`t.application_id = $${idx++}`);
+    params.push(filter.applicationId);
+  }
+  if (filter.categoryId) {
+    conditions.push(`t.category_id = $${idx++}`);
+    params.push(filter.categoryId);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -180,7 +202,12 @@ export async function listTickets(filter: ListTicketsFilter = {}): Promise<Ticke
   const offset = filter.offset ?? 0;
 
   const result = await pool.query<Ticket>(
-    `SELECT * FROM tickets ${where} ORDER BY created_at DESC LIMIT $${idx++} OFFSET $${idx}`,
+    `SELECT t.*, a.name AS application_name, tc.name AS category_name
+     FROM tickets t
+     LEFT JOIN applications a ON a.id = t.application_id
+     LEFT JOIN ticket_categories tc ON tc.id = t.category_id
+     ${where}
+     ORDER BY t.created_at DESC LIMIT $${idx++} OFFSET $${idx}`,
     [...params, limit, offset]
   );
 

@@ -473,6 +473,13 @@ textarea {
   padding: 12px 0;
 }
 
+.queue-submeta {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
 .badge {
   background: var(--color-badge-bg);
   border: 1px solid var(--color-badge-border);
@@ -733,6 +740,44 @@ textarea {
 
 .customer-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-config-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-config-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.config-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.config-row {
+  align-items: center;
+  background: var(--color-panel-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr auto;
+  padding: 12px 14px;
+}
+
+.config-row strong,
+.config-row span {
+  display: block;
+}
+
+.config-row span {
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  margin-top: 4px;
 }
 
 .customer-list {
@@ -1332,6 +1377,7 @@ textarea {
   .workspace,
   .login-hero,
   .surface-grid,
+  .service-config-grid,
   .knowledge-layout,
   .customer-grid,
   .reporting-grid {

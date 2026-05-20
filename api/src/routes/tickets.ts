@@ -27,7 +27,10 @@ export const ticketRoutes: FastifyPluginAsync = async (fastify) => {
       priority:     body.priority as TicketPriority,
       ticketType:   (body.ticketType as TicketType | undefined) ?? "incident",
       category:     body.category as string | undefined,
+      applicationId: body.applicationId as string | undefined,
+      categoryId:   body.categoryId as string | undefined,
       sourceRef:    body.sourceRef as string | undefined,
+      customerId:   body.customerId as string | undefined,
     });
     return reply.code(201).send(ticket);
   });
@@ -39,6 +42,8 @@ export const ticketRoutes: FastifyPluginAsync = async (fastify) => {
       status: query.status as TicketStatus | undefined,
       channel: query.channel as SupportChannel | undefined,
       priority: query.priority as TicketPriority | undefined,
+      applicationId: query.applicationId,
+      categoryId: query.categoryId,
       limit: query.limit ? parseInt(query.limit, 10) : undefined,
       offset: query.offset ? parseInt(query.offset, 10) : undefined,
     });

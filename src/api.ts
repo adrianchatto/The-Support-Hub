@@ -105,6 +105,10 @@ export type Ticket = {
   status: string;
   ticket_type: TicketType;
   category: string | null;
+  application_id: string | null;
+  application_name: string | null;
+  category_id: string | null;
+  category_name: string | null;
   assigned_agent_id: string | null;
   problem_id: string | null;
   first_response_due_at: string | null;
@@ -179,6 +183,26 @@ export type ProblemTicket = {
   customer_name: string;
 };
 
+export type Application = {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_user_id: string | null;
+  status: "active" | "inactive";
+  criticality: "low" | "medium" | "high" | "critical";
+  created_at: string;
+  updated_at: string;
+};
+
+export type TicketCategory = {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -221,7 +245,7 @@ export const customersApi = {
 // ─── Tickets ─────────────────────────────────────────────────────────────────
 
 export const ticketsApi = {
-  list: (params?: { status?: string; priority?: string; ticketType?: string }) => {
+  list: (params?: { status?: string; priority?: string; ticketType?: string; applicationId?: string; categoryId?: string }) => {
     const cleaned = Object.fromEntries(
       Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "")
     );
@@ -236,6 +260,8 @@ export const ticketsApi = {
     priority: string;
     ticketType?: TicketType;
     category?: string;
+    applicationId?: string;
+    categoryId?: string;
   }) => request<Ticket>("/api/v1/tickets", { method: "POST", body: JSON.stringify(data) }),
   updateStatus: (id: string, status: string) =>
     request<Ticket>(`/api/v1/tickets/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
@@ -245,6 +271,33 @@ export const ticketsApi = {
     request<TicketMessage[]>(`/api/v1/tickets/${id}/messages`),
   addMessage: (id: string, data: { authorName: string; body: string; visibility: "internal" | "customer" }) =>
     request<TicketMessage>(`/api/v1/tickets/${id}/messages`, { method: "POST", body: JSON.stringify(data) }),
+};
+
+// ─── Service catalog ─────────────────────────────────────────────────────────
+
+export const serviceCatalogApi = {
+  applications: () => request<Application[]>("/api/v1/service-catalog/applications"),
+  createApplication: (data: {
+    name: string;
+    description?: string;
+    ownerUserId?: string;
+    status?: "active" | "inactive";
+    criticality?: "low" | "medium" | "high" | "critical";
+  }) => request<Application>("/api/v1/service-catalog/applications", { method: "POST", body: JSON.stringify(data) }),
+  updateApplication: (id: string, data: Partial<{
+    name: string;
+    description: string;
+    ownerUserId: string;
+    status: "active" | "inactive";
+    criticality: "low" | "medium" | "high" | "critical";
+  }>) => request<Application>(`/api/v1/service-catalog/applications/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteApplication: (id: string) => request<void>(`/api/v1/service-catalog/applications/${id}`, { method: "DELETE" }),
+  ticketCategories: () => request<TicketCategory[]>("/api/v1/service-catalog/ticket-categories"),
+  createTicketCategory: (data: { name: string; description?: string; active?: boolean }) =>
+    request<TicketCategory>("/api/v1/service-catalog/ticket-categories", { method: "POST", body: JSON.stringify(data) }),
+  updateTicketCategory: (id: string, data: Partial<{ name: string; description: string; active: boolean }>) =>
+    request<TicketCategory>(`/api/v1/service-catalog/ticket-categories/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteTicketCategory: (id: string) => request<void>(`/api/v1/service-catalog/ticket-categories/${id}`, { method: "DELETE" }),
 };
 
 // ─── Problems ─────────────────────────────────────────────────────────────────

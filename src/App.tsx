@@ -27,6 +27,7 @@ import {
   usersApi,
   customersApi,
   ticketsApi,
+  serviceCatalogApi,
   problemsApi,
   articlesApi,
   slaApi,
@@ -40,6 +41,8 @@ import {
   type Ticket,
   type TicketType,
   type TicketMessage,
+  type Application,
+  type TicketCategory,
   type Article,
   type SlaPolicy,
   type SlaCompliance,
@@ -51,7 +54,7 @@ import "./App.css";
 
 // ─── Surface definitions ──────────────────────────────────────────────────────
 
-type Surface = "dashboard" | "tickets" | "customers" | "problems" | "knowledge" | "sla" | "reporting" | "users";
+type Surface = "dashboard" | "tickets" | "customers" | "problems" | "knowledge" | "serviceCatalog" | "sla" | "reporting" | "users";
 type Theme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "support_hub_theme";
@@ -63,9 +66,12 @@ function getSurfaces(role: UserRole): Array<{ id: Surface; label: string; icon: 
     { id: "customers",  label: "Customers",    icon: Users },
     { id: "problems",   label: "Problems",     icon: Layers },
     { id: "knowledge",  label: "Knowledge",    icon: BookOpen },
-    { id: "sla",        label: "SLA Config",   icon: Clock },
     { id: "reporting",  label: "Reporting",    icon: BarChart3 },
   ];
+  if (role === "supervisor" || role === "admin") {
+    base.splice(5, 0, { id: "serviceCatalog", label: "Service config", icon: Settings });
+    base.splice(6, 0, { id: "sla", label: "SLA Config", icon: Clock });
+  }
   if (role === "admin") {
     base.push({ id: "users", label: "Users", icon: UserCog });
   }
@@ -79,6 +85,7 @@ function surfaceTitle(s: Surface): string {
     customers:  "Customer directory",
     problems:   "Problem management",
     knowledge:  "Knowledge management",
+    serviceCatalog: "Service configuration",
     sla:        "SLA configuration",
     reporting:  "Management reporting",
     users:      "User management",
@@ -229,6 +236,7 @@ function App() {
         {activeSurface === "customers"  && <CustomersSurface />}
         {activeSurface === "problems"   && <ProblemsSurface />}
         {activeSurface === "knowledge"  && <KnowledgeSurface currentUser={currentUser} />}
+        {activeSurface === "serviceCatalog" && currentUser.role !== "agent" && <ServiceCatalogSurface />}
         {activeSurface === "sla"        && <SlaSurface />}
         {activeSurface === "reporting"  && <ReportingSurface />}
         {activeSurface === "users" && currentUser.role === "admin" && <UsersSurface />}
@@ -403,12 +411,23 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 
-const BLANK_TICKET = { customerId: "", customerName: "", summary: "", priority: "P3", category: "", ticketType: "incident" as TicketType };
+const BLANK_TICKET = {
+  customerId: "",
+  customerName: "",
+  summary: "",
+  priority: "P3",
+  category: "",
+  ticketType: "incident" as TicketType,
+  applicationId: "",
+  categoryId: "",
+};
 const TICKET_STATUSES = ["New", "Open", "Pending", "Resolved", "Closed"];
 
 function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
   const [tickets, setTickets]     = useState<Ticket[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [ticketCategories, setTicketCategories] = useState<TicketCategory[]>([]);
   const [formOpen, setFormOpen]   = useState(false);
   const [form, setForm]           = useState(BLANK_TICKET);
   const [saving, setSaving]       = useState(false);
@@ -421,12 +440,21 @@ function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
 
   useEffect(() => {
     reload();
-    customersApi.list().then(setCustomers).catch(console.error);
+    Promise.all([
+      customersApi.list().then(setCustomers),
+      serviceCatalogApi.applications().then((apps) => setApplications(apps.filter((a) => a.status === "active"))),
+      serviceCatalogApi.ticketCategories().then((cats) => setTicketCategories(cats.filter((c) => c.active))),
+    ]).catch(console.error);
   }, [reload]);
 
   function handleCustomerChange(id: string) {
     const c = customers.find((c) => c.id === id);
     setForm((f) => ({ ...f, customerId: id, customerName: c?.name ?? "" }));
+  }
+
+  function handleCategoryChange(id: string) {
+    const category = ticketCategories.find((c) => c.id === id);
+    setForm((f) => ({ ...f, categoryId: id, category: category?.name ?? "" }));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -442,6 +470,8 @@ function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
         priority:    form.priority,
         ticketType:  form.ticketType,
         category:    form.category || undefined,
+        applicationId: form.applicationId || undefined,
+        categoryId: form.categoryId || undefined,
       });
       setForm(BLANK_TICKET);
       setFormOpen(false);
@@ -520,9 +550,23 @@ function TicketsSurface({ currentUser }: { currentUser: AuthUser }) {
                 {["P1","P2","P3","P4"].map((p) => <option key={p}>{p}</option>)}
               </select>
             </label>
-            <label className="span-2">
+            <label>
+              Application / service
+              <select value={form.applicationId} onChange={(e) => setForm((f) => ({ ...f, applicationId: e.target.value }))}>
+                <option value="">— select application —</option>
+                {applications.map((app) => (
+                  <option key={app.id} value={app.id}>{app.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
               Category
-              <input placeholder="e.g. Access, Hardware…" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+              <select value={form.categoryId} onChange={(e) => handleCategoryChange(e.target.value)}>
+                <option value="">— select category —</option>
+                {ticketCategories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
             </label>
             <div className="form-actions span-2">
               <button className="primary-button" type="submit" disabled={saving}>{saving ? "Creating…" : "Create ticket"}</button>
@@ -683,6 +727,8 @@ function TicketDetailView({
             <span className={`priority priority-${ticket.priority.toLowerCase()}`}>{ticket.priority}</span>
             <span className="badge">{ticket.status}</span>
             <span className={`badge type-badge type-${ticket.ticket_type}`}>{TICKET_TYPE_LABELS[ticket.ticket_type] ?? ticket.ticket_type}</span>
+            {ticket.application_name && <span className="badge">{ticket.application_name}</span>}
+            {(ticket.category_name ?? ticket.category) && <span className="badge">{ticket.category_name ?? ticket.category}</span>}
             {assignedAgent && <span className="badge assigned-badge">🧑 {assignedAgent.name}</span>}
             {linkedProblem && <span className="badge problem-badge">⚠ {linkedProblem.title}</span>}
           </div>
@@ -803,7 +849,12 @@ function TicketQueueTable({ tickets, compact, onSelect }: { tickets: Ticket[]; c
           tabIndex={onSelect ? 0 : undefined}
           onKeyDown={(e) => e.key === "Enter" && onSelect?.(ticket)}
         >
-          <strong>{ticket.summary}</strong>
+          <div>
+            <strong>{ticket.summary}</strong>
+            <div className="queue-submeta">
+              {[ticket.application_name, ticket.category_name ?? ticket.category].filter(Boolean).join(" · ")}
+            </div>
+          </div>
           <span>{ticket.customer_name}</span>
           <span className={`badge type-badge type-${ticket.ticket_type}`}>{TICKET_TYPE_LABELS[ticket.ticket_type] ?? ticket.ticket_type}</span>
           <span className={`priority priority-${ticket.priority.toLowerCase()}`}>{ticket.priority}</span>
@@ -1314,6 +1365,239 @@ function UsersSurface() {
         <Metric label="Agents"       value={String(users.filter((u) => u.role === "agent").length)} />
         <Metric label="Supervisors"  value={String(users.filter((u) => u.role === "supervisor").length)} />
         <Metric label="Admins"       value={String(users.filter((u) => u.role === "admin").length)} />
+      </div>
+    </section>
+  );
+}
+
+// ─── Service catalog (supervisor/admin) ───────────────────────────────────────
+
+const BLANK_APPLICATION = {
+  name: "",
+  description: "",
+  ownerUserId: "",
+  status: "active" as "active" | "inactive",
+  criticality: "medium" as "low" | "medium" | "high" | "critical",
+};
+const BLANK_CATEGORY = { name: "", description: "", active: true };
+
+function ServiceCatalogSurface() {
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [categories, setCategories] = useState<TicketCategory[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [appForm, setAppForm] = useState(BLANK_APPLICATION);
+  const [categoryForm, setCategoryForm] = useState(BLANK_CATEGORY);
+  const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [editingCategory, setEditingCategory] = useState<TicketCategory | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(() => {
+    Promise.all([
+      serviceCatalogApi.applications().then(setApplications),
+      serviceCatalogApi.ticketCategories().then(setCategories),
+      usersApi.list().then(setUsers),
+    ]).catch(console.error);
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  function editApplication(app: Application) {
+    setEditingApp(app);
+    setAppForm({
+      name: app.name,
+      description: app.description ?? "",
+      ownerUserId: app.owner_user_id ?? "",
+      status: app.status,
+      criticality: app.criticality,
+    });
+    setError(null);
+  }
+
+  function editCategory(category: TicketCategory) {
+    setEditingCategory(category);
+    setCategoryForm({ name: category.name, description: category.description ?? "", active: category.active });
+    setError(null);
+  }
+
+  async function saveApplication(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        name: appForm.name,
+        description: appForm.description || undefined,
+        ownerUserId: appForm.ownerUserId || undefined,
+        status: appForm.status,
+        criticality: appForm.criticality,
+      };
+      if (editingApp) {
+        await serviceCatalogApi.updateApplication(editingApp.id, payload);
+      } else {
+        await serviceCatalogApi.createApplication(payload);
+      }
+      setAppForm(BLANK_APPLICATION);
+      setEditingApp(null);
+      reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save application");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveCategory(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        name: categoryForm.name,
+        description: categoryForm.description || undefined,
+        active: categoryForm.active,
+      };
+      if (editingCategory) {
+        await serviceCatalogApi.updateTicketCategory(editingCategory.id, payload);
+      } else {
+        await serviceCatalogApi.createTicketCategory(payload);
+      }
+      setCategoryForm(BLANK_CATEGORY);
+      setEditingCategory(null);
+      reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save category");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function disableApplication(app: Application) {
+    await serviceCatalogApi.updateApplication(app.id, { status: "inactive" }).catch(console.error);
+    reload();
+  }
+
+  async function disableCategory(category: TicketCategory) {
+    await serviceCatalogApi.updateTicketCategory(category.id, { active: false }).catch(console.error);
+    reload();
+  }
+
+  function ownerName(id: string | null) {
+    return users.find((u) => u.id === id)?.name ?? "Unassigned";
+  }
+
+  return (
+    <section className="service-config-grid">
+      {error && <div className="form-error span-2">{error}</div>}
+
+      <div className="operations-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Portfolio</p>
+            <h3>Application portfolio</h3>
+          </div>
+        </div>
+
+        <form className="ticket-form service-config-form" onSubmit={saveApplication}>
+          <label>
+            Application name
+            <input required value={appForm.name} onChange={(e) => setAppForm((f) => ({ ...f, name: e.target.value }))} />
+          </label>
+          <label>
+            Owner
+            <select value={appForm.ownerUserId} onChange={(e) => setAppForm((f) => ({ ...f, ownerUserId: e.target.value }))}>
+              <option value="">— unassigned —</option>
+              {users.filter((u) => u.role !== "agent").map((u) => (
+                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Criticality
+            <select value={appForm.criticality} onChange={(e) => setAppForm((f) => ({ ...f, criticality: e.target.value as typeof appForm.criticality }))}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select value={appForm.status} onChange={(e) => setAppForm((f) => ({ ...f, status: e.target.value as "active" | "inactive" }))}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label className="span-2">
+            Description
+            <textarea rows={3} value={appForm.description} onChange={(e) => setAppForm((f) => ({ ...f, description: e.target.value }))} />
+          </label>
+          <div className="form-actions span-2">
+            <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : editingApp ? "Save application" : "Add application"}</button>
+            {editingApp && <button className="secondary-button" type="button" onClick={() => { setEditingApp(null); setAppForm(BLANK_APPLICATION); }}>Cancel</button>}
+          </div>
+        </form>
+
+        <div className="config-list">
+          {applications.map((app) => (
+            <div className="config-row" key={app.id}>
+              <div>
+                <strong>{app.name}</strong>
+                <span>{ownerName(app.owner_user_id)} · {app.criticality} · {app.status}</span>
+              </div>
+              <div className="customer-actions">
+                <button className="icon-button" type="button" onClick={() => editApplication(app)} aria-label={`Edit ${app.name}`} title="Edit application"><Pencil size={15} /></button>
+                <button className="icon-button danger" type="button" onClick={() => disableApplication(app)} aria-label={`Disable ${app.name}`} title="Disable application"><X size={15} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="operations-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Ticketing</p>
+            <h3>Ticket categories</h3>
+          </div>
+        </div>
+
+        <form className="ticket-form service-config-form" onSubmit={saveCategory}>
+          <label>
+            Category name
+            <input required value={categoryForm.name} onChange={(e) => setCategoryForm((f) => ({ ...f, name: e.target.value }))} />
+          </label>
+          <label>
+            Status
+            <select value={categoryForm.active ? "active" : "inactive"} onChange={(e) => setCategoryForm((f) => ({ ...f, active: e.target.value === "active" }))}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label className="span-2">
+            Description
+            <textarea rows={3} value={categoryForm.description} onChange={(e) => setCategoryForm((f) => ({ ...f, description: e.target.value }))} />
+          </label>
+          <div className="form-actions span-2">
+            <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : editingCategory ? "Save category" : "Add category"}</button>
+            {editingCategory && <button className="secondary-button" type="button" onClick={() => { setEditingCategory(null); setCategoryForm(BLANK_CATEGORY); }}>Cancel</button>}
+          </div>
+        </form>
+
+        <div className="config-list">
+          {categories.map((category) => (
+            <div className="config-row" key={category.id}>
+              <div>
+                <strong>{category.name}</strong>
+                <span>{category.description || "No description"} · {category.active ? "active" : "inactive"}</span>
+              </div>
+              <div className="customer-actions">
+                <button className="icon-button" type="button" onClick={() => editCategory(category)} aria-label={`Edit ${category.name}`} title="Edit category"><Pencil size={15} /></button>
+                <button className="icon-button danger" type="button" onClick={() => disableCategory(category)} aria-label={`Disable ${category.name}`} title="Disable category"><X size={15} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

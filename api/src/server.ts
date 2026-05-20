@@ -11,6 +11,7 @@ import { articleRoutes } from "./routes/articles.js";
 import { authRoutes } from "./routes/auth.js";
 import { userRoutes } from "./routes/users.js";
 import { problemRoutes } from "./routes/problems.js";
+import { serviceCatalogRoutes } from "./routes/serviceCatalog.js";
 
 // Augment FastifyInstance with the authenticate decorator
 declare module "fastify" {
@@ -82,6 +83,7 @@ export async function buildServer() {
   await fastify.register(articleRoutes,     { prefix: "/api/v1/articles" });
   await fastify.register(userRoutes,        { prefix: "/api/v1/users" });
   await fastify.register(problemRoutes,     { prefix: "/api/v1/problems" });
+  await fastify.register(serviceCatalogRoutes, { prefix: "/api/v1/service-catalog" });
 
   // Global error handler
   fastify.setErrorHandler((error: FastifyError, _request, reply) => {
